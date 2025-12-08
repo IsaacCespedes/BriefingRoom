@@ -59,7 +59,7 @@ describe("+page.server load function", () => {
     await expect(load({ url: mockUrl, cookies: mockCookies } as any)).rejects.toThrow("Redirect");
 
     expect(validateToken).toHaveBeenCalledWith(token);
-    expect(redirect).toHaveBeenCalledWith(302, "/host?token=host-token-123");
+    expect(redirect).toHaveBeenCalledWith(302, "/host");
   });
 
   it("should validate token from query parameter and redirect candidate", async () => {
@@ -75,7 +75,7 @@ describe("+page.server load function", () => {
     await expect(load({ url: mockUrl, cookies: mockCookies } as any)).rejects.toThrow("Redirect");
 
     expect(validateToken).toHaveBeenCalledWith(token);
-    expect(redirect).toHaveBeenCalledWith(302, "/candidate?token=candidate-token-456");
+    expect(redirect).toHaveBeenCalledWith(302, "/candidate");
   });
 
   it("should use token from cookie if query parameter is not present", async () => {

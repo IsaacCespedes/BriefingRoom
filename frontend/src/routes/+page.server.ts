@@ -29,9 +29,9 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 
     // Redirect based on role
     if (tokenInfo.role === "host") {
-      throw redirect(302, `/host?token=${token}`);
+      throw redirect(302, `/host`);
     } else if (tokenInfo.role === "candidate") {
-      throw redirect(302, `/candidate?token=${token}`);
+      throw redirect(302, `/candidate`);
     }
 
     return {
