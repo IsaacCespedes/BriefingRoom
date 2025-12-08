@@ -16,42 +16,7 @@
   }
 
   onMount(() => {
-    if (!roomUrl) {
-      return;
-    }
-
-    try {
-      // Create Daily.co call frame
-      callFrame = DailyIframe.createFrame(
-        document.getElementById("daily-call-frame") || undefined,
-        {
-          showLeaveButton: true,
-          iframeStyle: {
-            position: "relative",
-            width: "100%",
-            height: "100%",
-            border: "0",
-          },
-        }
-      );
-
-      // Set up event listeners
-      callFrame.on("joined-meeting", () => {
-        isJoined = true;
-        error = null;
-      });
-
-      callFrame.on("left-meeting", () => {
-        isJoined = false;
-      });
-
-      callFrame.on("error", (e: any) => {
-        error = e?.errorMsg || "An error occurred during the call";
-        isJoined = false;
-      });
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Failed to initialize Daily.co";
-    }
+    // No-op
   });
 
   onDestroy(() => {
@@ -62,19 +27,60 @@
   });
 
   async function joinCall() {
-    if (!callFrame || !roomUrl) {
-      error = "Call frame not initialized";
+    if (!roomUrl) {
+      error = "Room URL is required";
       return;
     }
 
-    try {
-      await callFrame.join({
-        url: roomUrl,
-        token: token || undefined,
-      });
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Failed to join call";
-    }
+    isJoined = true;
+
+    // Use a timeout to allow Svelte to render the component
+    setTimeout(async () => {
+      if (!callFrame) {
+        try {
+          const frame = document.getElementById("daily-call-frame");
+          if (!frame) {
+            throw new Error("Daily call frame element not found.");
+          }
+
+          callFrame = DailyIframe.createFrame(frame, {
+            showLeaveButton: true,
+            iframeStyle: {
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              border: "0",
+            },
+          });
+
+          callFrame
+            .on("joined-meeting", () => {
+              isJoined = true;
+              error = null;
+            })
+            .on("left-meeting", () => {
+              isJoined = false;
+            })
+            .on("error", (e: any) => {
+              error = e?.errorMsg || "An error occurred during the call";
+              isJoined = false;
+            });
+        } catch (e) {
+          error = e instanceof Error ? e.message : "Failed to initialize Daily.co";
+          isJoined = false;
+          return;
+        }
+      }
+
+      try {
+        await callFrame.join({
+          url: roomUrl,
+          token: token || undefined,
+        });
+      } catch (e) {
+        error = e instanceof Error ? e.message : "Failed to join call";
+      }
+    }, 0);
   }
 
   function leaveCall() {
@@ -96,7 +102,7 @@
       <button
         on:click={joinCall}
         class="px-6 py-3 rounded-full text-white font-semibold bg-green-500 hover:bg-green-600 transition-colors"
-        disabled={!callFrame || !!error}
+        disabled={!!error}
       >
         Join Call
       </button>

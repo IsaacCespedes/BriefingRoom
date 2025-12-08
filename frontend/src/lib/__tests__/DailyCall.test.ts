@@ -20,6 +20,11 @@ describe("DailyCall", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("should render the component with join button", () => {
@@ -46,7 +51,7 @@ describe("DailyCall", () => {
     });
   });
 
-  it("should initialize Daily.co call frame on mount", async () => {
+  it("should not initialize Daily.co call frame on mount", async () => {
     const DailyIframe = await import("@daily-co/daily-js");
 
     render(DailyCall, {
@@ -56,12 +61,12 @@ describe("DailyCall", () => {
       },
     });
 
-    // Note: This test verifies the component structure
-    // Actual Daily.co SDK integration would require more complex mocking
-    expect(screen.getByText("Join Call")).toBeInTheDocument();
+    expect(DailyIframe.default.createFrame).not.toHaveBeenCalled();
   });
 
-  it("should handle join call action", async () => {
+  it("should handle join call action and show leave button", async () => {
+    const DailyIframe = await import("@daily-co/daily-js");
+
     render(DailyCall, {
       props: {
         roomUrl: mockRoomUrl,
@@ -72,22 +77,11 @@ describe("DailyCall", () => {
     const joinButton = screen.getByText("Join Call");
     await fireEvent.click(joinButton);
 
-    // In a real implementation, we would verify the join method was called
-    // This test verifies the button exists and can be clicked
-    expect(joinButton).toBeInTheDocument();
-  });
+    vi.runAllTimers();
 
-  it("should display leave button when joined", () => {
-    // This test would require setting up the component in a joined state
-    // For now, we verify the component structure
-    render(DailyCall, {
-      props: {
-        roomUrl: mockRoomUrl,
-        token: mockToken,
-      },
+    await waitFor(() => {
+      expect(DailyIframe.default.createFrame).toHaveBeenCalled();
+      expect(screen.getByText("Leave Call")).toBeInTheDocument();
     });
-
-    // Leave button should not be visible initially
-    expect(screen.queryByText("Leave Call")).not.toBeInTheDocument();
   });
 });
