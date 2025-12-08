@@ -23,11 +23,11 @@ The "Bionic Interviewer" is a tool that provides a host with an interactive, AI-
 
 ## 3. System Architecture
 
-*(This section will be populated with diagrams as part of the spec-driven process.)*
+See the [Architecture Documentation](./docs/architecture.md) for detailed system design.
 
--   **System Architecture Diagram:** (Placeholder for a diagram showing the overall system)
--   **Component Diagram:** (Placeholder for a diagram showing frontend/backend components)
--   **Entity-Relationship Diagram (ERD):** (Placeholder for a diagram showing database schema)
+-   **System Architecture Diagram:** [docs/diagrams/system-architecture.md](./docs/diagrams/system-architecture.md)
+-   **Component Diagram:** [docs/diagrams/component-diagram.md](./docs/diagrams/component-diagram.md)
+-   **Entity-Relationship Diagram (ERD):** [docs/diagrams/erd.md](./docs/diagrams/erd.md)
 
 ---
 
@@ -57,14 +57,14 @@ The project will be organized as a monorepo. A `docs/` directory will be created
 
 ## 5. Development Plan (Spec-Driven)
 
-### Phase 1: Foundation & Documentation
+### Phase 1: Foundation & Documentation ✅
 
--   [ ] **Task 1: Setup Project Structure.**
+-   [x] **Task 1: Setup Project Structure.**
     -   Create the monorepo structure with `frontend`, `backend`, and `docs` directories.
--   [ ] **Task 2: Initial Documentation.**
+-   [x] **Task 2: Initial Documentation.**
     -   Create `docs/architecture.md` to describe the high-level design.
     -   Create initial diagrams (System Architecture, ERD) and place them in `docs/diagrams`.
--   [ ] **Task 3: Setup Tooling.**
+-   [x] **Task 3: Setup Tooling.**
     -   Initialize `ruff` for the Python backend.
     -   Initialize `prettier` and `svelte-check` for the SvelteKit frontend.
     -   Setup `pytest` and `vitest`.
@@ -109,7 +109,7 @@ The project will be organized as a monorepo. A `docs/` directory will be created
 ### Phase 5: Database (Supabase)
 
 - [ ] **Task 1: Create tables.**
-  - In the Supabase dashboard, create the `interviews` and `interview_notes` tables with the following schemas:
+  - In the Supabase dashboard, create the `interviews`, `interview_notes`, and `tokens` tables with the following schemas:
 
   **`interviews`**
   - `id` (uuid, primary key)
@@ -124,3 +124,12 @@ The project will be organized as a monorepo. A `docs/` directory will be created
   - `created_at` (timestamp with time zone)
   - `note` (text)
   - `source` (text, e.g., "CrewAI", "Host")
+
+  **`tokens`**
+  - `id` (uuid, primary key)
+  - `interview_id` (uuid, foreign key to `interviews.id`)
+  - `token_hash` (text, unique) - hashed version of the token
+  - `role` (text, check constraint: 'host' or 'candidate')
+  - `created_at` (timestamp with time zone)
+  - `expires_at` (timestamp with time zone, nullable)
+  - `is_active` (boolean, default true)
