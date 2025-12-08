@@ -85,19 +85,25 @@ The project will be organized as a monorepo. A `docs/` directory will be created
     -   Write integration tests for the `POST /generate-briefing` endpoint.
     -   Implement the endpoint in `backend/app/api/` to pass the tests.
 
-### Phase 3: Frontend (SvelteKit)
+### Phase 3: Frontend (SvelteKit) ✅
 
--   [ ] **Task 1: Setup SvelteKit.**
+-   [x] **Task 1: Setup SvelteKit.**
     -   Create a new SvelteKit project in `frontend`.
--   [ ] **Task 2: Role-Based Access.**
+    -   Set up TypeScript, Vite, Tailwind CSS, and project structure.
+    -   Created routes for host and candidate interfaces.
+-   [x] **Task 2: Role-Based Access.**
     -   Write tests for the token validation and role detection logic.
     -   Implement the `+page.server.ts` logic to pass the tests.
--   [ ] **Task 3: Vapi Integration.**
+    -   Created backend `/api/validate-token` endpoint.
+    -   Implemented role-based routing (host/candidate).
+-   [x] **Task 3: Vapi Integration.**
     -   Write tests for the briefing functionality.
     -   Implement the `VapiOrb` component and the briefing trigger logic.
--   [ ] **Task 4: Daily.co Integration.**
+    -   Created briefing API functions and integrated into host dashboard.
+-   [x] **Task 4: Daily.co Integration.**
     -   Write tests for the video call setup.
     -   Implement the Daily.co integration.
+    -   Created `DailyCall` component and room management API functions.
 
 ### Phase 4: Docker & Deployment
 
