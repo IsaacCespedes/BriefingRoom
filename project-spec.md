@@ -69,19 +69,19 @@ The project will be organized as a monorepo. A `docs/` directory will be created
     -   Initialize `prettier` and `svelte-check` for the SvelteKit frontend.
     -   Setup `pytest` and `vitest`.
 
-### Phase 2: Backend (FastAPI)
+### Phase 2: Backend (FastAPI) ✅
 
--   [ ] **Task 1: Setup FastAPI.**
+-   [x] **Task 1: Setup FastAPI.**
     -   Create a new FastAPI project in `backend`.
     -   Write a failing test for a health check endpoint.
     -   Implement the health check endpoint `/health` to pass the test.
--   [ ] **Task 2: Database Models & Migrations.**
+-   [x] **Task 2: Database Models & Migrations.**
     -   Define Pydantic models in `backend/app/models/`.
     -   Create Supabase migrations for `interviews` and `interview_notes` tables.
--   [ ] **Task 3: CrewAI Logic.**
+-   [x] **Task 3: CrewAI Logic.**
     -   Write tests for the `create_briefing_crew` function.
     -   Implement the crew logic in `backend/app/crew/` to pass the tests.
--   [ ] **Task 4: `/generate-briefing` Endpoint.**
+-   [x] **Task 4: `/generate-briefing` Endpoint.**
     -   Write integration tests for the `POST /generate-briefing` endpoint.
     -   Implement the endpoint in `backend/app/api/` to pass the tests.
 
