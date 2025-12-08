@@ -16,8 +16,8 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@daily-co/daily-js": "^0.59.0",
-    "@vapi-ai/web": "^1.0.0"
+    "@daily-co/daily-js": "^0.83.1",
+    "@vapi-ai/web": "^2.3.10"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^3.0.0",
