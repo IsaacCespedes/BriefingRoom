@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { load } from "../+page.server";
 import { validateToken } from "$lib/api";
+import { HttpError } from "@sveltejs/kit";
 
 vi.mock("$lib/api");
 
@@ -23,12 +24,11 @@ describe("host +page.server load function", () => {
     mockUrl.searchParams.get.mockReturnValue(null);
     mockCookies.get.mockReturnValue(null);
 
-    const result = await load({ url: mockUrl, cookies: mockCookies } as any);
-
-    expect(result.status).toBe(401);
-    expect(result.data).toHaveProperty("error", "No token provided");
-    expect(result.data).toHaveProperty("role", null);
-    expect(result.data).toHaveProperty("interviewId", null);
+    await expect(load({ url: mockUrl, cookies: mockCookies } as any)).rejects.toThrow(HttpError);
+    await load({ url: mockUrl, cookies: mockCookies } as any).catch((e: HttpError) => {
+      expect(e.status).toBe(401);
+      expect(e.body.message).toBe("No token provided");
+    });
   });
 
   it("should return role and interview_id for valid host token", async () => {
@@ -60,12 +60,11 @@ describe("host +page.server load function", () => {
       interview_id: "interview-456",
     });
 
-    const result = await load({ url: mockUrl, cookies: mockCookies } as any);
-
-    expect(result.status).toBe(403);
-    expect(result.data).toHaveProperty("error", "Access denied. Host role required.");
-    expect(result.data).toHaveProperty("role", "candidate");
-    expect(result.data).toHaveProperty("interviewId", "interview-456");
+    await expect(load({ url: mockUrl, cookies: mockCookies } as any)).rejects.toThrow(HttpError);
+    await load({ url: mockUrl, cookies: mockCookies } as any).catch((e: HttpError) => {
+      expect(e.status).toBe(403);
+      expect(e.body.message).toBe("Access denied. Host role required.");
+    });
   });
 
   it("should return 401 when token validation fails", async () => {
@@ -75,12 +74,11 @@ describe("host +page.server load function", () => {
 
     vi.mocked(validateToken).mockRejectedValue(new Error("Invalid or expired token"));
 
-    const result = await load({ url: mockUrl, cookies: mockCookies } as any);
-
-    expect(result.status).toBe(401);
-    expect(result.data).toHaveProperty("error", "Invalid or expired token");
-    expect(result.data).toHaveProperty("role", null);
-    expect(result.data).toHaveProperty("interviewId", null);
+    await expect(load({ url: mockUrl, cookies: mockCookies } as any)).rejects.toThrow(HttpError);
+    await load({ url: mockUrl, cookies: mockCookies } as any).catch((e: HttpError) => {
+      expect(e.status).toBe(401);
+      expect(e.body.message).toBe("Invalid or expired token");
+    });
   });
 
   it("should use token from cookie if query parameter is not present", async () => {
