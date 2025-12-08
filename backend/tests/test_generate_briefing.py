@@ -22,7 +22,7 @@ def test_generate_briefing_endpoint_requires_job_description():
     """Test that the endpoint requires job_description."""
     client = TestClient(app)
     response = client.post(
-        "/generate-briefing",
+        "/api/generate-briefing",
         json={"resume_text": "Sample resume"},
     )
     assert response.status_code == 422
@@ -33,7 +33,7 @@ def test_generate_briefing_endpoint_requires_resume_text():
     """Test that the endpoint requires resume_text."""
     client = TestClient(app)
     response = client.post(
-        "/generate-briefing",
+        "/api/generate-briefing",
         json={"job_description": "Sample job description"},
     )
     assert response.status_code == 422
@@ -52,7 +52,7 @@ def test_generate_briefing_endpoint_creates_interview(mock_create_crew):
 
     client = TestClient(app)
     response = client.post(
-        "/generate-briefing",
+        "/api/generate-briefing",
         json={
             "job_description": "Software Engineer position",
             "resume_text": "John Doe\nSoftware Engineer\n5 years experience",
@@ -78,7 +78,7 @@ def test_generate_briefing_endpoint_stores_interview(mock_create_crew):
 
     client = TestClient(app)
     response = client.post(
-        "/generate-briefing",
+        "/api/generate-briefing",
         json={
             "job_description": "Software Engineer position",
             "resume_text": "John Doe\nSoftware Engineer\n5 years experience",

@@ -19,7 +19,7 @@ export async function generateBriefing(
   request: GenerateBriefingRequest,
   token: string
 ): Promise<GenerateBriefingResponse> {
-  const response = await fetch(`${API_BASE_URL}/generate-briefing`, {
+  const response = await fetch(`${API_BASE_URL}/api/generate-briefing`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -43,7 +43,6 @@ export async function getInterview(interviewId: string, token: string): Promise<
   const response = await fetch(`${API_BASE_URL}/api/interviews/${interviewId}`, {
     method: "GET",
     headers: {
-      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
   });

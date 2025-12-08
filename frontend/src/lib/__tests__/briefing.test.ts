@@ -34,7 +34,7 @@ describe("briefing API", () => {
 
       const result = await generateBriefing(request, mockToken);
 
-      expect(global.fetch).toHaveBeenCalledWith(`${API_BASE_URL}/generate-briefing`, {
+      expect(global.fetch).toHaveBeenCalledWith(`${API_BASE_URL}/api/generate-briefing`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -97,7 +97,6 @@ describe("briefing API", () => {
       expect(global.fetch).toHaveBeenCalledWith(`${API_BASE_URL}/api/interviews/${interviewId}`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${mockToken}`,
         },
       });
