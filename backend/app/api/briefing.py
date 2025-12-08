@@ -60,3 +60,19 @@ async def generate_briefing(request: GenerateBriefingRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate briefing: {str(e)}")
 
+
+@router.get("/interviews/{interview_id}")
+async def get_interview(interview_id: UUID):
+    """Get interview details by ID."""
+    # This is a mock implementation.
+    # In a real application, you would fetch the interview from the database.
+    from datetime import datetime
+
+    return {
+        "id": interview_id,
+        "created_at": datetime.utcnow().isoformat(),
+        "job_description": "Mock job description",
+        "resume_text": "Mock resume text",
+        "status": "pending",
+    }
+
