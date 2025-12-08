@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
     // Store token in cookie for subsequent requests
     cookies.set("token", token, {
       path: "/",
-      httpOnly: false, // Allow client-side access
+      httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 7 days

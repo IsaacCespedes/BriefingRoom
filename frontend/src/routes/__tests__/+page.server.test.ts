@@ -130,8 +130,9 @@ describe("+page.server load function", () => {
       token,
       expect.objectContaining({
         path: "/",
-        httpOnly: false,
+        httpOnly: true,
         sameSite: "lax",
+        secure: false, // In test environment, NODE_ENV is not 'production'
       })
     );
   });
