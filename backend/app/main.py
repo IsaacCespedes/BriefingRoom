@@ -12,7 +12,7 @@ app = FastAPI(title="Bionic Interviewer API", version="0.1.0")
 # Configure CORS
 # Allow frontend origin from environment variable or default to localhost:3000
 allowed_origins = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"
+    "CORS_ORIGINS", "http://localhost:3000,http://0.0.0.0:3000,http://localhost:5173"
 ).split(",")
 
 app.add_middleware(
