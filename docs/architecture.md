@@ -11,6 +11,9 @@ The system follows a client-server architecture with the following components:
 1. **Frontend (SvelteKit)**: Web-based user interface for hosts
 2. **Backend (FastAPI)**: RESTful API server handling business logic
 3. **Database (Supabase/PostgreSQL)**: Persistent storage for interviews and notes
+   - **⚠️ Current Implementation**: Temporary in-memory storage (`backend/app/storage.py`)
+   - Data is lost on server restart
+   - Will be replaced with Supabase in Phase 5
 4. **External Services**:
    - **Daily.co**: Video conferencing infrastructure
    - **Vapi**: Voice AI for interactive briefings
@@ -47,17 +50,21 @@ The system uses a token-based authentication model designed for simplicity withi
    - **Host Token**: Grants full access to the interview (view briefing, start video call, add notes)
    - **Candidate Token**: Grants limited access (join video call, view interview status)
 
-2. **Token Storage**: Tokens are stored in the database as hashed values for security. Each token is:
+2. **Token Storage**: Tokens are stored as hashed values for security. Each token is:
    - Associated with a specific interview (`interview_id`)
    - Assigned a role (`host` or `candidate`)
    - Optionally expires after a set duration
    - Can be revoked by setting `is_active = false`
+   - **⚠️ Currently**: Stored in-memory (temporary solution, lost on restart)
+   - **Future**: Will be stored in Supabase `tokens` table (Phase 5)
 
 3. **Token Validation Flow**:
    - Frontend sends token in request headers or query parameters
-   - Backend validates token against database (checking hash, expiration, active status)
+   - Backend validates token against storage (checking hash, expiration, active status)
    - Backend extracts `interview_id` and `role` from token record
    - Access control enforced based on role and requested resource
+   - **⚠️ Currently**: Validates against in-memory `tokens_store` (temporary)
+   - **Future**: Will validate against Supabase database (Phase 5)
 
 4. **Token Distribution**:
    - Host receives host token immediately upon interview creation

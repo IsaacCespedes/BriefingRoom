@@ -1,11 +1,30 @@
 """Main FastAPI application entry point."""
 
+import os
+
 from fastapi import FastAPI
-from app.api import auth, briefing, health
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api import auth, briefing, health, interviews
 
 app = FastAPI(title="Bionic Interviewer API", version="0.1.0")
+
+# Configure CORS
+# Allow frontend origin from environment variable or default to localhost:3000
+allowed_origins = os.getenv(
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(health.router)
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(briefing.router, prefix="/api", tags=["briefing"])
+app.include_router(interviews.router, prefix="/api", tags=["interviews"])
 

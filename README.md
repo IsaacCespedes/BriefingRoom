@@ -51,6 +51,8 @@ See [project-spec.md](./project-spec.md) for the complete development plan.
 - ⏳ Phase 4: Docker & Deployment
 - ⏳ Phase 5: Database (Supabase)
 
+**Note:** The application currently uses **temporary in-memory storage** for interviews and tokens. Data is lost on server restart. This will be replaced with Supabase in Phase 5.
+
 ## Documentation
 
 - [Architecture Documentation](./docs/architecture.md)
