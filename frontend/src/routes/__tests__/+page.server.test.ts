@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { load } from "../+page.server";
+import { load } from "../../routes/+page.server";
 import { validateToken } from "$lib/api";
 import { redirect } from "@sveltejs/kit";
 
@@ -132,7 +132,8 @@ describe("+page.server load function", () => {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        secure: false, // In test environment, NODE_ENV is not 'production'
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        secure: process.env.NODE_ENV === "production",
       })
     );
   });

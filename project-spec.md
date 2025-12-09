@@ -114,6 +114,18 @@ The project will be organized as a monorepo. A `docs/` directory will be created
 
 ### Phase 5: Database (Supabase)
 
+**⚠️ Current Status: Temporary In-Memory Storage**
+
+The application currently uses in-memory storage (`backend/app/storage.py`) as a temporary development solution. This means:
+- Data (interviews, tokens) is stored in memory and lost on server restart
+- This is sufficient for development and testing but not for production
+- The code is structured to easily migrate to Supabase when Phase 5 is completed
+
+**Implementation Notes:**
+- Token validation (`backend/app/api/auth.py`) uses the in-memory `tokens_store`
+- Interview creation (`backend/app/api/interviews.py`) uses the in-memory `interviews_store`
+- All storage operations are centralized in `backend/app/storage.py` for easy migration
+
 - [ ] **Task 1: Create tables.**
   - In the Supabase dashboard, create the `interviews`, `interview_notes`, and `tokens` tables with the following schemas:
 

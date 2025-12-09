@@ -8,8 +8,6 @@
 
   export let data: PageData;
 
-  let jobDescription = "";
-  let resumeText = "";
   let briefing: string | null = null;
   let isLoading = false;
   let error: string | null = null;
@@ -17,6 +15,10 @@
   let roomUrl: string | null = null;
   let roomToken: string | null = null;
   let isLoadingRoom = false;
+
+  // Get job description and resume from server data
+  $: jobDescription = data.interview?.job_description || "";
+  $: resumeText = data.interview?.resume_text || "";
 
   onMount(() => {
     // Get token from URL or session storage
@@ -31,7 +33,7 @@
     }
 
     if (!jobDescription.trim() || !resumeText.trim()) {
-      error = "Please provide both job description and resume text";
+      error = "Job description and resume are required";
       return;
     }
 
@@ -105,7 +107,30 @@
           <p class="text-gray-700">Interview ID: {data.interviewId}</p>
         </div>
 
-        <!-- Briefing Generation Form -->
+        <!-- Interview Details Display -->
+        {#if data.interview}
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Interview Details</h2>
+
+            <div class="space-y-6">
+              <div>
+                <h3 class="block text-sm font-medium text-gray-700 mb-2">Job Description</h3>
+                <div class="p-4 bg-gray-50 rounded-md border border-gray-200">
+                  <p class="text-gray-700 whitespace-pre-wrap">{data.interview.job_description}</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="block text-sm font-medium text-gray-700 mb-2">Candidate Resume</h3>
+                <div class="p-4 bg-gray-50 rounded-md border border-gray-200">
+                  <p class="text-gray-700 whitespace-pre-wrap">{data.interview.resume_text}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Briefing Generation -->
         <div class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Generate Briefing</h2>
 
@@ -115,43 +140,22 @@
             </div>
           {/if}
 
-          <form on:submit|preventDefault={handleGenerateBriefing} class="space-y-4">
-            <div>
-              <label for="job-description" class="block text-sm font-medium text-gray-700 mb-2">
-                Job Description
-              </label>
-              <textarea
-                id="job-description"
-                bind:value={jobDescription}
-                rows="5"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter the job description..."
-                required
-              ></textarea>
+          {#if !data.interview}
+            <div
+              class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-4"
+            >
+              Interview details are not available. Please ensure the interview was created
+              successfully.
             </div>
-
-            <div>
-              <label for="resume-text" class="block text-sm font-medium text-gray-700 mb-2">
-                Resume Text
-              </label>
-              <textarea
-                id="resume-text"
-                bind:value={resumeText}
-                rows="10"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Paste the candidate's resume text..."
-                required
-              ></textarea>
-            </div>
-
+          {:else}
             <button
-              type="submit"
-              disabled={isLoading}
+              on:click={handleGenerateBriefing}
+              disabled={isLoading || !jobDescription.trim() || !resumeText.trim()}
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? "Generating..." : "Generate Briefing"}
             </button>
-          </form>
+          {/if}
 
           {#if briefing}
             <div class="mt-6 p-4 bg-gray-50 rounded-md">
