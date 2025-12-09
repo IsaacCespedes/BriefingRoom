@@ -58,3 +58,4 @@ coverage/
 
 mcp.json
 .serena/
+backend/hold.env

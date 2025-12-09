@@ -1,13 +1,16 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import DailyIframe from "@daily-co/daily-js";
 
   export let roomUrl: string;
   export let token: string | null = null;
 
   let isJoined = false;
+  let isJoining = false;
   let error: string | null = null;
   let callFrame: any = null;
+  let frameElement: HTMLDivElement | null = null;
+  let showFrame = false;
 
   $: if (!roomUrl) {
     error = "Room URL is required";
@@ -16,12 +19,26 @@
   }
 
   onMount(() => {
-    // No-op
+    // Initialize the frame element reference when component mounts
+    return () => {
+      if (callFrame) {
+        try {
+          callFrame.destroy();
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+        callFrame = null;
+      }
+    };
   });
 
   onDestroy(() => {
     if (callFrame) {
-      callFrame.destroy();
+      try {
+        callFrame.destroy();
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
       callFrame = null;
     }
   });
@@ -32,18 +49,35 @@
       return;
     }
 
-    isJoined = true;
+    if (isJoining || isJoined) {
+      return; // Prevent multiple join attempts
+    }
 
-    // Use a timeout to allow Svelte to render the component
-    setTimeout(async () => {
+    isJoining = true;
+    showFrame = true; // Show frame element before initializing
+    error = null;
+
+    try {
+      // Wait for Svelte to update the DOM and ensure element is rendered
+      await tick();
+
+      // Give the browser a moment to render the element
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Ensure the frame element exists and is in the DOM
+      if (!frameElement) {
+        // Fallback: try to get element by ID
+        frameElement = document.getElementById("daily-call-frame") as HTMLDivElement;
+      }
+
+      if (!frameElement || !frameElement.isConnected) {
+        throw new Error("Daily call frame element not found or not in DOM.");
+      }
+
+      // Create frame if it doesn't exist
       if (!callFrame) {
         try {
-          const frame = document.getElementById("daily-call-frame");
-          if (!frame) {
-            throw new Error("Daily call frame element not found.");
-          }
-
-          callFrame = DailyIframe.createFrame(frame, {
+          callFrame = DailyIframe.createFrame(frameElement, {
             showLeaveButton: true,
             iframeStyle: {
               position: "relative",
@@ -56,37 +90,50 @@
           callFrame
             .on("joined-meeting", () => {
               isJoined = true;
+              isJoining = false;
               error = null;
             })
             .on("left-meeting", () => {
               isJoined = false;
+              isJoining = false;
             })
             .on("error", (e: any) => {
-              error = e?.errorMsg || "An error occurred during the call";
+              error = e?.errorMsg || e?.error || "An error occurred during the call";
               isJoined = false;
+              isJoining = false;
             });
         } catch (e) {
           error = e instanceof Error ? e.message : "Failed to initialize Daily.co";
-          isJoined = false;
+          isJoining = false;
           return;
         }
       }
 
-      try {
-        await callFrame.join({
-          url: roomUrl,
-          token: token || undefined,
-        });
-      } catch (e) {
-        error = e instanceof Error ? e.message : "Failed to join call";
+      // Only include token if it's a non-empty string
+      const joinOptions: { url: string; token?: string } = { url: roomUrl };
+      if (token && typeof token === "string" && token.trim() !== "") {
+        joinOptions.token = token;
       }
-    }, 0);
+
+      await callFrame.join(joinOptions);
+    } catch (e) {
+      error = e instanceof Error ? e.message : "Failed to join call";
+      isJoined = false;
+      isJoining = false;
+    }
   }
 
   function leaveCall() {
     if (callFrame) {
-      callFrame.leave();
+      try {
+        callFrame.leave();
+      } catch (e) {
+        error = e instanceof Error ? e.message : "Failed to leave call";
+      }
     }
+    isJoined = false;
+    isJoining = false;
+    showFrame = false;
   }
 </script>
 
@@ -98,13 +145,20 @@
   {/if}
 
   <div class="flex flex-col items-center gap-4">
-    {#if !isJoined}
+    {#if !isJoined && !isJoining}
       <button
         on:click={joinCall}
         class="px-6 py-3 rounded-full text-white font-semibold bg-green-500 hover:bg-green-600 transition-colors"
         disabled={!!error}
       >
         Join Call
+      </button>
+    {:else if isJoining}
+      <button
+        disabled
+        class="px-6 py-3 rounded-full text-white font-semibold bg-gray-500 cursor-not-allowed transition-colors"
+      >
+        Joining...
       </button>
     {:else}
       <button
@@ -115,11 +169,16 @@
       </button>
     {/if}
 
-    {#if isJoined}
-      <div class="w-full h-96 bg-gray-900 rounded-lg overflow-hidden" id="daily-call-frame">
-        <!-- Daily.co iframe will be inserted here -->
-      </div>
-    {/if}
+    <!-- Always render the frame element - Daily.co needs it in the DOM -->
+    <div
+      bind:this={frameElement}
+      class="w-full h-96 bg-gray-900 rounded-lg overflow-hidden {showFrame || isJoined
+        ? ''
+        : 'hidden'}"
+      id="daily-call-frame"
+    >
+      <!-- Daily.co iframe will be inserted here -->
+    </div>
   </div>
 </div>
 

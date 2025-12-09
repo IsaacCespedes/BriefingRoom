@@ -10,8 +10,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       # TODO: Replace with your Supabase URL and keys
       - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - DAILY_API_KEY=${DAILY_API_KEY}
+      - DAILY_API_URL=${DAILY_API_URL:-https://api.daily.co/v1}
     volumes:
       - ./backend:/app
     restart: unless-stopped

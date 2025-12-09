@@ -7,6 +7,11 @@ describe("validateToken", () => {
 
   beforeEach(() => {
     global.fetch = vi.fn();
+    // Set environment variable for tests
+    if (typeof process !== "undefined") {
+      process.env.API_BASE_URL = API_BASE_URL;
+      process.env.VITE_API_BASE_URL = API_BASE_URL;
+    }
   });
 
   afterEach(() => {
