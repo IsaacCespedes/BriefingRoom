@@ -105,49 +105,54 @@ The project will be organized as a monorepo. A `docs/` directory will be created
     -   Implement the Daily.co integration.
     -   Created `DailyCall` component and room management API functions.
 
-### Phase 4: Docker & Deployment
+### Phase 4: Docker & Deployment ✅
 
--   [ ] **Task 1: Dockerize services.**
+-   [x] **Task 1: Dockerize services.**
     -   Create `Dockerfile` for frontend and backend.
--   [ ] **Task 2: Docker Compose.**
+-   [x] **Task 2: Docker Compose.**
     -   Create `docker-compose.yml`.
 
-### Phase 5: Database (Supabase)
+### Phase 5: Database (Supabase) ✅
 
-**⚠️ Current Status: Temporary In-Memory Storage**
+-   [x] **Task 1: Create tables.**
+    -   Created Supabase migration for `tokens` table (`interviews` and `interview_notes` already existed)
+    -   All tables now have proper schemas with foreign keys and constraints
 
-The application currently uses in-memory storage (`backend/app/storage.py`) as a temporary development solution. This means:
-- Data (interviews, tokens) is stored in memory and lost on server restart
-- This is sufficient for development and testing but not for production
-- The code is structured to easily migrate to Supabase when Phase 5 is completed
+-   [x] **Task 2: Replace in-memory storage.**
+    -   Created `backend/app/db.py` with Supabase client and database operations
+    -   Updated `backend/app/api/auth.py` to use Supabase for token validation
+    -   Updated `backend/app/api/interviews.py` to use Supabase for interview operations
+    -   Added `supabase-py` and `python-dotenv` dependencies
 
-**Implementation Notes:**
-- Token validation (`backend/app/api/auth.py`) uses the in-memory `tokens_store`
-- Interview creation (`backend/app/api/interviews.py`) uses the in-memory `interviews_store`
-- All storage operations are centralized in `backend/app/storage.py` for easy migration
+**Implementation Details:**
+- Database client: `backend/app/db.py` provides all database operations
+- Token operations: Create, validate, and revoke tokens via Supabase
+- Interview operations: Create and retrieve interviews from Supabase
+- Interview notes: Create and retrieve notes (ready for future use)
+- Environment variables required: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
-- [ ] **Task 1: Create tables.**
-  - In the Supabase dashboard, create the `interviews`, `interview_notes`, and `tokens` tables with the following schemas:
+**Database Schema:**
 
   **`interviews`**
-  - `id` (uuid, primary key)
-  - `created_at` (timestamp with time zone)
+  - `id` (uuid, primary key, default: gen_random_uuid())
+  - `created_at` (timestamp with time zone, default: now())
   - `job_description` (text)
   - `resume_text` (text)
-  - `status` (text)
+  - `status` (text, default: 'pending')
 
   **`interview_notes`**
-  - `id` (uuid, primary key)
+  - `id` (uuid, primary key, default: gen_random_uuid())
   - `interview_id` (uuid, foreign key to `interviews.id`)
-  - `created_at` (timestamp with time zone)
+  - `created_at` (timestamp with time zone, default: now())
   - `note` (text)
   - `source` (text, e.g., "CrewAI", "Host")
 
   **`tokens`**
-  - `id` (uuid, primary key)
-  - `interview_id` (uuid, foreign key to `interviews.id`)
+  - `id` (uuid, primary key, default: gen_random_uuid())
+  - `interview_id` (uuid, foreign key to `interviews.id`, ON DELETE CASCADE)
   - `token_hash` (text, unique) - hashed version of the token
   - `role` (text, check constraint: 'host' or 'candidate')
-  - `created_at` (timestamp with time zone)
+  - `created_at` (timestamp with time zone, default: now())
   - `expires_at` (timestamp with time zone, nullable)
-  - `is_active` (boolean, default true)
+  - `is_active` (boolean, default: true)
+  - Indexes: `token_hash`, `interview_id`

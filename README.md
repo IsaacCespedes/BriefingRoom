@@ -46,12 +46,12 @@ BriefingRoom/
 See [project-spec.md](./project-spec.md) for the complete development plan.
 
 - ✅ Phase 1: Foundation & Documentation
-- ⏳ Phase 2: Backend (FastAPI)
-- ⏳ Phase 3: Frontend (SvelteKit)
-- ⏳ Phase 4: Docker & Deployment
-- ⏳ Phase 5: Database (Supabase)
+- ✅ Phase 2: Backend (FastAPI)
+- ✅ Phase 3: Frontend (SvelteKit)
+- ✅ Phase 4: Docker & Deployment
+- ✅ Phase 5: Database (Supabase)
 
-**Note:** The application currently uses **temporary in-memory storage** for interviews and tokens. Data is lost on server restart. This will be replaced with Supabase in Phase 5.
+**Note:** The application now uses **Supabase PostgreSQL** for persistent storage of interviews, tokens, and interview notes.
 
 ## Documentation
 

@@ -11,9 +11,9 @@ The system follows a client-server architecture with the following components:
 1. **Frontend (SvelteKit)**: Web-based user interface for hosts
 2. **Backend (FastAPI)**: RESTful API server handling business logic
 3. **Database (Supabase/PostgreSQL)**: Persistent storage for interviews and notes
-   - **⚠️ Current Implementation**: Temporary in-memory storage (`backend/app/storage.py`)
-   - Data is lost on server restart
-   - Will be replaced with Supabase in Phase 5
+   - **✅ Implementation**: Supabase database with PostgreSQL
+   - Database operations handled via `backend/app/db.py`
+   - Tables: `interviews`, `interview_notes`, `tokens`
 4. **External Services**:
    - **Daily.co**: Video conferencing infrastructure
    - **Vapi**: Voice AI for interactive briefings

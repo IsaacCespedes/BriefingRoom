@@ -1,12 +1,11 @@
 """Authentication and token validation endpoints."""
 
 import hashlib
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from app.storage import tokens_store
+from app.db import get_token_by_hash
 
 router = APIRouter()
 
@@ -30,28 +29,22 @@ async def validate_token(token: str = Query(..., description="Token to validate"
     
     This implementation:
     1. Hashes the incoming token
-    2. Looks up the token hash in the in-memory store (development)
-    3. Checks if the token is active
+    2. Looks up the token hash in the Supabase database
+    3. Checks if the token is active and not expired
     4. Returns the role and interview_id from the token record
-    
-    In production, this should query the database instead of in-memory storage.
     """
     # Hash the incoming token
     token_hash = hash_token(token)
     
-    # Look up the token in the store
-    token_record = tokens_store.get(token_hash)
+    # Look up the token in the database
+    token_record = get_token_by_hash(token_hash)
     
     if not token_record:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     
-    # Check if token is active
-    if not token_record.get("is_active", True):
-        raise HTTPException(status_code=401, detail="Token has been revoked")
-    
     # Return the role and interview_id
     return TokenInfoResponse(
         role=token_record["role"],
-        interview_id=token_record["interview_id"]
+        interview_id=str(token_record["interview_id"])
     )
 
