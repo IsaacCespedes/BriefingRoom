@@ -41,6 +41,34 @@ BriefingRoom/
    - Frontend: `cd frontend && npm install` (to be created)
 4. Run with Docker Compose: `docker-compose up` (to be created)
 
+### JWT Token Maintenance
+
+The local Supabase instance uses JWT tokens for authentication. These tokens are pre-generated and stored in `.env` and `docker-compose.yml`.
+
+**Token Validity:** Current tokens are valid for **1 year** (until December 9, 2026).
+
+**When to regenerate:**
+- Tokens expire (check expiration date above)
+- You change the `JWT_SECRET` in docker-compose.yml
+- Security concerns require token rotation
+
+**How to regenerate:**
+
+```bash
+# Generate new tokens
+python3 scripts/generate_jwt_tokens.py 'super-secret-jwt-token-with-at-least-32-characters-long'
+
+# Update .env file with the output tokens (SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY)
+# Update docker-compose.yml with the same tokens in two places:
+#   - studio service (lines ~37-38)
+#   - backend service (lines ~136-137)
+
+# Restart containers
+docker compose down && docker compose up -d
+```
+
+**Note:** The token generation script uses `time.time()` to avoid timezone issues and sets the `iat` (issued at) claim to 5 minutes in the past to prevent clock skew errors.
+
 ## Development Phases
 
 See [project-spec.md](./project-spec.md) for the complete development plan.
