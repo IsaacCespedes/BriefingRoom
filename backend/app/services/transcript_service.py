@@ -345,13 +345,15 @@ def parse_webvtt_to_segments(webvtt_content: str) -> list[dict]:
 
 def extract_webvtt_metadata(webvtt_content: str) -> dict:
     """
-    Extract metadata from WebVTT (duration, timestamps, etc.).
+    Extract metadata from WebVTT (duration, participant count, etc.).
+    
+    Note: WebVTT timestamps are relative (seconds from start), not absolute Unix timestamps.
+    Therefore, started_at and ended_at are not populated here. If absolute timestamps
+    are required, fetch the recording/session start time from Daily.co's API.
     
     Returns:
         Dictionary with metadata:
-        - duration_seconds: Total duration in seconds
-        - started_at: First timestamp (if available)
-        - ended_at: Last timestamp (if available)
+        - duration_seconds: Total duration in seconds (calculated from relative timestamps)
         - participant_count: Estimated from speaker labels (if available)
     """
     if not webvtt_content or not webvtt_content.strip():
@@ -368,16 +370,17 @@ def extract_webvtt_metadata(webvtt_content: str) -> dict:
         first_timestamp = timestamps[0]
         last_timestamp = timestamps[-1]
         
-        # Parse timestamps
+        # Parse timestamps (these are relative, not absolute Unix timestamps)
         def parse_timestamp(h, m, s, ms):
             return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
         
         start_seconds = parse_timestamp(*first_timestamp[:4])
         end_seconds = parse_timestamp(*last_timestamp[4:])
         
+        # Calculate duration from relative timestamps (this is correct)
         metadata["duration_seconds"] = int(end_seconds - start_seconds)
-        metadata["started_at"] = datetime.fromtimestamp(start_seconds) if start_seconds > 0 else None
-        metadata["ended_at"] = datetime.fromtimestamp(end_seconds) if end_seconds > 0 else None
+        # Do not set started_at/ended_at - WebVTT only provides relative timestamps
+        # To get absolute timestamps, fetch the recording/session start time from Daily.co API
     
     # Try to extract participant count from speaker labels
     # Look for patterns like "Speaker 1:", "Speaker 2:", etc.
