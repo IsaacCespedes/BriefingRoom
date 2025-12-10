@@ -3,6 +3,7 @@
   import type { PageData } from "./$types";
   import VapiOrb from "$lib/components/VapiOrb.svelte";
   import DailyCall from "$lib/components/DailyCall.svelte";
+  import TranscriptDownload from "$lib/components/TranscriptDownload.svelte";
   import { generateBriefing } from "$lib/briefing";
   import { createRoom, getRoomUrl } from "$lib/daily";
 
@@ -229,9 +230,19 @@
               token={roomToken}
               authToken={token}
               interviewId={data.interviewId}
+              userRole="host"
             />
           {/if}
         </div>
+
+        <!-- Transcript Download -->
+        {#if token && data.interviewId}
+          <div
+            class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+          >
+            <TranscriptDownload interviewId={data.interviewId} {token} />
+          </div>
+        {/if}
       </div>
     {/if}
   </div>

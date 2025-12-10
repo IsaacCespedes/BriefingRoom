@@ -1,9 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import {
+    addTranscriptSegment,
+    initializeTranscript,
+    markTranscriptComplete,
+  } from "$lib/transcriptStorage";
 
   export let callFrame: any;
   export let isVisible: boolean = true;
   export let transcriptionActive: boolean = false; // Pass transcription status from parent
+  export let interviewId: string | null = null; // Interview ID for local storage
+  export let userRole: "host" | "candidate" | null = null; // User's role for transcript labeling
 
   let captions: Array<{
     id: number;
@@ -15,6 +22,7 @@
   let isTranscriptionActive = false;
   let maxCaptions = 10; // Keep last 10 caption lines
   let debugInfo = "";
+  let currentUserParticipantId: string | null = null; // Store current user's participant ID
 
   // Keep track of transcription event handlers
   let transcriptionStartedHandler: (() => void) | null = null;
@@ -25,7 +33,8 @@
   let listenersSetup = false; // Track if listeners have been set up to prevent duplicates
 
   onMount(() => {
-    // Set up listeners when component mounts or when callFrame becomes available
+    // ALWAYS set up listeners when component mounts, regardless of visibility
+    // This ensures transcription is captured even when captions are hidden
     if (callFrame) {
       setupTranscriptionListeners();
     }
@@ -58,17 +67,72 @@
       captions = []; // Clear previous captions
       captionIdCounter = 0;
       debugInfo = "Transcription active";
+
+      // Get current user's participant ID from callFrame
+      try {
+        if (callFrame) {
+          const participants = callFrame.participants();
+          if (participants) {
+            // Try to find local participant
+            const localParticipant = participants.local;
+            if (localParticipant) {
+              currentUserParticipantId =
+                localParticipant.session_id ||
+                localParticipant.user_id ||
+                localParticipant.participant_id ||
+                localParticipant.id ||
+                null;
+              console.log(
+                "[ClosedCaptions] Current user participant ID:",
+                currentUserParticipantId,
+                "from participant:",
+                localParticipant
+              );
+            } else {
+              // Try to find local participant in all participants
+              const allParticipants = Object.values(participants);
+              for (const participant of allParticipants as any[]) {
+                if (participant?.local === true || participant?.isLocal === true) {
+                  currentUserParticipantId =
+                    participant.session_id ||
+                    participant.user_id ||
+                    participant.participant_id ||
+                    participant.id ||
+                    null;
+                  console.log(
+                    "[ClosedCaptions] Found local participant ID:",
+                    currentUserParticipantId
+                  );
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[ClosedCaptions] Could not get current user participant ID:", e);
+      }
+
+      // Initialize transcript storage if interview ID is available
+      if (interviewId) {
+        initializeTranscript(interviewId, `interview-${interviewId}`);
+      }
     };
 
     transcriptionStoppedHandler = () => {
       console.log("[ClosedCaptions] Transcription stopped event received");
       isTranscriptionActive = false;
       debugInfo = "Transcription stopped";
+
+      // Mark transcript as complete in local storage
+      if (interviewId) {
+        markTranscriptComplete(interviewId);
+      }
     };
 
-    // Sync with parent's transcription status when it becomes visible or when parent status changes
-    // This handles the case where transcription was started before component was visible
-    $: if (isVisible && transcriptionActive && !isTranscriptionActive) {
+    // Sync with parent's transcription status (regardless of visibility)
+    // This ensures transcription events are captured even when captions are hidden
+    $: if (transcriptionActive && !isTranscriptionActive) {
       console.log("[ClosedCaptions] Syncing with parent transcription status");
       isTranscriptionActive = true;
     }
@@ -85,6 +149,8 @@
       // Handle different event formats
       let text = "";
       let speaker = null;
+      let participantId =
+        event.participantId || event.participant_id || event.userId || event.session_id || null;
 
       if (typeof event === "string") {
         // If event is just a string
@@ -97,6 +163,8 @@
         // Nested data format
         text = event.data.text;
         speaker = event.data.speaker || null;
+        participantId =
+          participantId || event.data.participantId || event.data.participant_id || null;
       } else if (event?.transcript) {
         // Alternative format
         text = event.transcript;
@@ -108,28 +176,97 @@
         return;
       }
 
-      // Add new caption
-      const newCaption = {
-        id: captionIdCounter++,
-        text: text.trim(),
-        speaker: speaker,
-        timestamp: event.timestamp || event.time || Date.now(),
-      };
-
-      captions = [...captions, newCaption];
-
-      // Keep only the last maxCaptions lines
-      if (captions.length > maxCaptions) {
-        captions = captions.slice(-maxCaptions);
+      // Try to get participant ID from callFrame if not in event
+      if (!participantId && callFrame) {
+        try {
+          const participants = callFrame.participants();
+          // Try to match by speaker label or other means
+          // For now, we'll rely on the event's participant ID
+        } catch (e) {
+          // Ignore errors
+        }
       }
 
-      // Auto-scroll to bottom (handled by CSS)
-      requestAnimationFrame(() => {
-        const container = document.getElementById("captions-container");
-        if (container) {
-          container.scrollTop = container.scrollHeight;
+      // Apply role-based labeling if this is the current user speaking
+      let finalSpeaker = speaker;
+      if (userRole) {
+        // Try multiple ways to identify if this is the current user
+        const isCurrentUser =
+          (currentUserParticipantId &&
+            participantId &&
+            participantId === currentUserParticipantId) ||
+          // Also check if speaker label matches what we'd expect for current user
+          (speaker && speaker.toLowerCase().includes("you")) ||
+          // Or if event indicates it's local
+          event.isLocal === true ||
+          event.local === true;
+
+        if (isCurrentUser) {
+          // This is the current user speaking - apply role-based label
+          finalSpeaker = userRole === "host" ? "Interviewer" : "Interviewee";
+          console.log(
+            "[ClosedCaptions] Applied role-based label:",
+            finalSpeaker,
+            "for participant:",
+            participantId
+          );
+        } else {
+          // This is another participant
+          // Try to infer the other role
+          if (userRole === "host" && speaker) {
+            // If current user is host, the other is likely the interviewee
+            // But we can't be 100% sure, so keep original speaker label
+            // unless we can identify it's definitely the other participant
+            finalSpeaker = speaker; // Keep original for now
+          } else if (userRole === "candidate" && speaker) {
+            // If current user is candidate, the other is likely the interviewer
+            // But again, keep original unless we can identify
+            finalSpeaker = speaker; // Keep original for now
+          }
         }
-      });
+      }
+
+      // ALWAYS save to local storage FIRST (before any display logic)
+      // This ensures transcription is captured even when captions are hidden
+      if (interviewId) {
+        addTranscriptSegment(interviewId, {
+          id: captionIdCounter,
+          text: text.trim(),
+          speaker: finalSpeaker, // Use the role-based label
+          participantId: participantId,
+          timestamp: event.timestamp || event.time || Date.now(),
+        });
+      }
+
+      // Only update display captions if visible (for UI purposes)
+      if (isVisible) {
+        // Add new caption for display
+        const timestamp = event.timestamp || event.time || Date.now();
+        const newCaption = {
+          id: captionIdCounter++,
+          text: text.trim(),
+          speaker: finalSpeaker,
+          timestamp: timestamp,
+        };
+
+        captions = [...captions, newCaption];
+
+        // Keep only the last maxCaptions lines for display
+        if (captions.length > maxCaptions) {
+          captions = captions.slice(-maxCaptions);
+        }
+
+        // Auto-scroll to bottom (handled by CSS)
+        requestAnimationFrame(() => {
+          const container = document.getElementById("captions-container");
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
+      } else {
+        // Still increment counter even when hidden to maintain sequence
+        captionIdCounter++;
+      }
     };
 
     errorHandler = (event: any) => {
@@ -144,6 +281,22 @@
       callFrame.on("transcription-stopped", transcriptionStoppedHandler);
       callFrame.on("transcription-message", transcriptionMessageHandler);
       callFrame.on("transcription-error", errorHandler);
+
+      // Also listen for participant updates to get current user's ID
+      callFrame.on("participant-joined", (event: any) => {
+        try {
+          if (event?.participant?.local) {
+            currentUserParticipantId =
+              event.participant.session_id || event.participant.user_id || null;
+            console.log(
+              "[ClosedCaptions] Updated current user participant ID:",
+              currentUserParticipantId
+            );
+          }
+        } catch (e) {
+          console.warn("[ClosedCaptions] Error getting participant ID:", e);
+        }
+      });
 
       // Only register app-message if needed, and make sure it's a separate handler
       appMessageHandler = (event: any) => {
@@ -183,6 +336,7 @@
       if (appMessageHandler) {
         callFrame.off("app-message", appMessageHandler);
       }
+      // Note: participant-joined listener cleanup is handled automatically by Daily.co
 
       listenersSetup = false;
     } catch (e) {
