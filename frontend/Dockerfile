@@ -4,9 +4,15 @@ FROM node:18-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Accept build arguments
+# Accept build arguments for Vite environment variables
 ARG VITE_API_BASE_URL=http://localhost:8000
+ARG VITE_VAPI_PUBLIC_KEY
+ARG VITE_VAPI_ASSISTANT_ID
+
+# Set as environment variables for Vite build process
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_VAPI_PUBLIC_KEY=$VITE_VAPI_PUBLIC_KEY
+ENV VITE_VAPI_ASSISTANT_ID=$VITE_VAPI_ASSISTANT_ID
 
 # Copy package files
 COPY package*.json ./
