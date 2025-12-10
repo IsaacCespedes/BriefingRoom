@@ -173,9 +173,11 @@
           <div class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50">
             <h2 class="text-xl font-bold text-white mb-4">Voice Briefing</h2>
             <VapiOrb
-              apiKey={import.meta.env.VITE_VAPI_API_KEY || ""}
+              publicKey={import.meta.env.VITE_VAPI_PUBLIC_KEY || ""}
               assistantId={import.meta.env.VITE_VAPI_ASSISTANT_ID || ""}
               interviewId={data.interviewId || ""}
+              token={token || ""}
+              briefing={briefing || ""}
             />
           </div>
         {/if}

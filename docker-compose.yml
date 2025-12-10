@@ -13,6 +13,9 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - DAILY_API_KEY=${DAILY_API_KEY}
       - DAILY_API_URL=${DAILY_API_URL:-https://api.daily.co/v1}
+      - VAPI_API_KEY=${VAPI_API_KEY}
+      - VAPI_API_URL=${VAPI_API_URL:-https://api.vapi.ai}
+      - VAPI_PUBLIC_KEY=${VAPI_PUBLIC_KEY}
     volumes:
       - ./backend:/app
     restart: unless-stopped
@@ -35,6 +38,8 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+        - VITE_VAPI_PUBLIC_KEY=${VITE_VAPI_PUBLIC_KEY}
+        - VITE_VAPI_ASSISTANT_ID=${VITE_VAPI_ASSISTANT_ID}
     container_name: bionic-interviewer-frontend
     ports:
       - "3000:3000"
