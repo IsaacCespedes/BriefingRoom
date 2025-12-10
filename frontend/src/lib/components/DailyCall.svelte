@@ -321,16 +321,16 @@
 
 <div class="daily-call-container">
   {#if error}
-    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+    <div class="px-4 py-3 mb-4 text-red-700 bg-red-50 rounded border border-red-200">
       {error}
     </div>
   {/if}
 
-  <div class="flex flex-col items-center gap-4">
+  <div class="flex flex-col gap-4 items-center">
     {#if !isJoined && !isJoining}
       <button
         on:click={joinCall}
-        class="px-6 py-3 rounded-full text-white font-semibold bg-green-500 hover:bg-green-600 transition-colors"
+        class="px-6 py-3 font-semibold text-white bg-green-500 rounded-full transition-colors hover:bg-green-600"
         disabled={!!error}
       >
         Join Call
@@ -338,7 +338,7 @@
     {:else if isJoining}
       <button
         disabled
-        class="px-6 py-3 rounded-full text-white font-semibold bg-gray-500 cursor-not-allowed transition-colors"
+        class="px-6 py-3 font-semibold text-white bg-gray-500 rounded-full transition-colors cursor-not-allowed"
       >
         Joining...
       </button>
@@ -346,14 +346,14 @@
       <div class="flex gap-2 items-center">
         <button
           on:click={toggleCaptions}
-          class="px-4 py-2 rounded-lg text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors text-sm"
+          class="px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg transition-colors hover:bg-gray-700"
           title={showCaptions ? "Hide Captions" : "Show Captions"}
         >
           {showCaptions ? "Hide Captions" : "Show Captions"}
         </button>
         <button
           on:click={leaveCall}
-          class="px-6 py-3 rounded-full text-white font-semibold bg-red-500 hover:bg-red-600 transition-colors"
+          class="px-6 py-3 font-semibold text-white bg-red-500 rounded-full transition-colors hover:bg-red-600"
         >
           Leave Call
         </button>
@@ -387,6 +387,6 @@
 
 <style>
   .daily-call-container {
-    @apply p-6 bg-white rounded-lg shadow-lg;
+    @apply p-6 rounded-lg shadow-lg;
   }
 </style>

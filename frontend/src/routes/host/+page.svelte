@@ -92,11 +92,11 @@
   }
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
-  <div class="container mx-auto px-4 py-8">
+<div class="min-h-screen bg-gradient-to-br from-gray-900 to-gray-900 via-slate-800">
+  <div class="container px-4 py-8 mx-auto">
     <div class="mb-8">
       <h1
-        class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2"
+        class="mb-2 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500"
       >
         Host Dashboard
       </h1>
@@ -105,61 +105,21 @@
 
     {#if data.error}
       <div
-        class="bg-red-900/30 border border-red-700/50 text-red-300 px-6 py-4 rounded-xl mb-6 backdrop-blur-sm"
+        class="px-6 py-4 mb-6 text-red-300 rounded-xl border backdrop-blur-sm bg-red-900/30 border-red-700/50"
       >
         {data.error}
       </div>
     {:else}
       <div class="space-y-6">
-        <!-- Interview Info -->
-        <div
-          class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
-        >
-          <h2 class="text-xl font-bold text-white mb-3">Interview Information</h2>
-          <p class="text-gray-300">
-            <span class="text-gray-500">Interview ID:</span>
-            <span class="font-mono text-blue-400">{data.interviewId}</span>
-          </p>
-        </div>
-
-        <!-- Interview Details Display -->
-        {#if data.interview}
-          <div
-            class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
-          >
-            <h2 class="text-xl font-bold text-white mb-6">Interview Details</h2>
-
-            <div class="space-y-6">
-              <div>
-                <h3 class="block text-sm font-semibold text-gray-300 mb-3">Job Description</h3>
-                <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
-                  <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">
-                    {data.interview.job_description}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h3 class="block text-sm font-semibold text-gray-300 mb-3">Candidate Resume</h3>
-                <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
-                  <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">
-                    {data.interview.resume_text}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        {/if}
-
         <!-- Briefing Generation -->
         <div
-          class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+          class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
         >
-          <h2 class="text-xl font-bold text-white mb-4">Generate Briefing</h2>
+          <h2 class="mb-4 text-xl font-bold text-white">Generate Briefing</h2>
 
           {#if error}
             <div
-              class="bg-red-900/30 border border-red-700/50 text-red-300 px-6 py-4 rounded-xl mb-4 backdrop-blur-sm"
+              class="px-6 py-4 mb-4 text-red-300 rounded-xl border backdrop-blur-sm bg-red-900/30 border-red-700/50"
             >
               {error}
             </div>
@@ -167,7 +127,7 @@
 
           {#if !data.interview}
             <div
-              class="bg-yellow-900/30 border border-yellow-700/50 text-yellow-300 px-6 py-4 rounded-xl mb-4 backdrop-blur-sm"
+              class="px-6 py-4 mb-4 text-yellow-300 rounded-xl border backdrop-blur-sm bg-yellow-900/30 border-yellow-700/50"
             >
               Interview details are not available. Please ensure the interview was created
               successfully.
@@ -176,17 +136,17 @@
             <button
               on:click={handleGenerateBriefing}
               disabled={isLoading || !jobDescription.trim() || !resumeText.trim()}
-              class="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-blue-500/50"
+              class="px-6 py-3 font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-blue-500/50"
             >
               {isLoading ? "Generating..." : "Generate Briefing"}
             </button>
           {/if}
 
           {#if briefing}
-            <div class="mt-6 p-5 bg-slate-900/50 rounded-lg border border-slate-600">
-              <h3 class="text-lg font-semibold text-white mb-3">Generated Briefing</h3>
+            <div class="p-5 mt-6 rounded-lg border bg-slate-900/50 border-slate-600">
+              <h3 class="mb-3 text-lg font-semibold text-white">Generated Briefing</h3>
               <div
-                class="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap leading-relaxed"
+                class="max-w-none leading-relaxed text-gray-300 whitespace-pre-wrap prose prose-invert"
               >
                 {briefing}
               </div>
@@ -197,9 +157,9 @@
         <!-- Vapi Orb Component -->
         {#if briefing}
           <div
-            class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+            class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
           >
-            <h2 class="text-xl font-bold text-white mb-4">Voice Briefing</h2>
+            <h2 class="mb-4 text-xl font-bold text-white">Voice Briefing</h2>
             <VapiOrb
               publicKey={import.meta.env.VITE_VAPI_PUBLIC_KEY || ""}
               assistantId={import.meta.env.VITE_VAPI_ASSISTANT_ID || ""}
@@ -212,15 +172,15 @@
 
         <!-- Daily.co Video Call -->
         <div
-          class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+          class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
         >
-          <h2 class="text-xl font-bold text-white mb-4">Video Call</h2>
+          <h2 class="mb-4 text-xl font-bold text-white">Video Call</h2>
 
           {#if !roomUrl}
             <button
               on:click={handleCreateRoom}
               disabled={isLoadingRoom}
-              class="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-green-500/50"
+              class="px-6 py-3 font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg shadow-lg transition-all duration-200 hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-green-500/50"
             >
               {isLoadingRoom ? "Creating Room..." : "Start Video Call"}
             </button>
@@ -238,9 +198,49 @@
         <!-- Transcript Download -->
         {#if token && data.interviewId}
           <div
-            class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+            class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
           >
             <TranscriptDownload interviewId={data.interviewId} {token} />
+          </div>
+        {/if}
+
+        <!-- Interview Info -->
+        <div
+          class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
+        >
+          <h2 class="mb-3 text-xl font-bold text-white">Interview Information</h2>
+          <p class="text-gray-300">
+            <span class="text-gray-500">Interview ID:</span>
+            <span class="font-mono text-blue-400">{data.interviewId}</span>
+          </p>
+        </div>
+
+        <!-- Interview Details Display -->
+        {#if data.interview}
+          <div
+            class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
+          >
+            <h2 class="mb-6 text-xl font-bold text-white">Interview Details</h2>
+
+            <div class="space-y-6">
+              <div>
+                <h3 class="block mb-3 text-sm font-semibold text-gray-300">Job Description</h3>
+                <div class="p-4 rounded-lg border bg-slate-900/50 border-slate-600">
+                  <p class="leading-relaxed text-gray-300 whitespace-pre-wrap">
+                    {data.interview.job_description}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="block mb-3 text-sm font-semibold text-gray-300">Candidate Resume</h3>
+                <div class="p-4 rounded-lg border bg-slate-900/50 border-slate-600">
+                  <p class="leading-relaxed text-gray-300 whitespace-pre-wrap">
+                    {data.interview.resume_text}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         {/if}
       </div>
