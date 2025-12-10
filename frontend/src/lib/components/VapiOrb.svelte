@@ -269,6 +269,6 @@
 
 <style>
   .vapi-orb-container {
-    @apply p-6 bg-white rounded-lg shadow-lg;
+    @apply p-6 rounded-lg shadow-lg;
   }
 </style>
