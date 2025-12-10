@@ -136,12 +136,17 @@ async def create_meeting_token(room_name: str, properties: Optional[dict] = None
     if properties:
         payload["properties"].update(properties)
     
+    # Debug: log the payload structure being sent
+    import json
+    print(f"[DEBUG] Creating meeting token with payload: {json.dumps(payload, indent=2)}")
+    
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, headers=headers, json=payload, timeout=10.0)
             response.raise_for_status()
             data = response.json()
             token = data.get("token")
+            print(f"[DEBUG] Token created successfully: {token[:20]}..." if token else "[DEBUG] No token returned")
             # Return None if token is empty string or not present
             return token if token and isinstance(token, str) and token.strip() else None
         except httpx.HTTPStatusError as e:
@@ -187,15 +192,26 @@ async def create_room(
             "enable_chat": True,
             "enable_screenshare": True,
             "enable_recording": False,  # Set to True if you want recording
+            "enable_transcription_storage": True,  # Store transcripts for retrieval
+            # Note: Transcription provider/model are configured at domain level in Daily.co dashboard
+            # The room just needs enable_transcription_storage set to True
         }
         
         # Create room with "public" privacy (can be changed to "private" for invite-only)
         room_data = await create_daily_room(room_name, privacy="public", properties=room_properties)
         
         # Generate a meeting token for secure access
+        # Note: Transcription admin permission is required to start transcription
+        # According to Daily.co docs: use permissions.canAdmin array with "transcription"
         token_properties = {
             "is_owner": True,  # Host has owner privileges
             "exp": 86400,  # Token expires in 24 hours
+            "enable_live_captions_ui": True,  # Enable closed captions UI in Daily Prebuilt
+            # Transcription admin permission (required to start/stop transcription)
+            # Format: permissions.canAdmin must be an array containing "transcription"
+            "permissions": {
+                "canAdmin": ["transcription"],
+            },
         }
         
         try:
@@ -214,6 +230,61 @@ async def create_room(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to create Daily.co room: {str(e)}",
+        )
+
+
+@router.post("/daily/start-transcription/{interview_id}")
+async def start_transcription(
+    interview_id: str,
+    token_info: TokenInfoResponse = Depends(validate_token_dependency),
+):
+    """
+    Start transcription for a Daily.co room using REST API.
+    
+    This is an alternative to starting transcription client-side.
+    Requires transcription admin permissions in the meeting token.
+    """
+    check_daily_api_key()
+    
+    # Validate that the interview_id matches the token's interview_id
+    if interview_id != token_info.interview_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Interview ID in path does not match the token's interview ID",
+        )
+    
+    try:
+        room_name = f"interview-{interview_id}"
+        url = f"{DAILY_API_URL}/rooms/{room_name}/transcription/start"
+        headers = {
+            "Authorization": f"Bearer {DAILY_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        
+        # Daily.co transcription start endpoint doesn't require a body
+        # Transcription provider is configured at domain level in Daily.co dashboard
+        async with httpx.AsyncClient() as client:
+            try:
+                # Send POST request with no body (Daily.co transcription start endpoint)
+                response = await client.post(url, headers=headers, timeout=10.0)
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as e:
+                raise HTTPException(
+                    status_code=e.response.status_code,
+                    detail=f"Daily.co API error: {e.response.text}",
+                )
+            except httpx.RequestError as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to connect to Daily.co: {str(e)}",
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start transcription: {str(e)}",
         )
 
 
@@ -246,6 +317,12 @@ async def get_room(
             token_properties = {
                 "is_owner": True,
                 "exp": 86400,
+                "enable_live_captions_ui": True,  # Enable closed captions UI in Daily Prebuilt
+                # Transcription admin permission (required to start/stop transcription)
+                # Format: permissions.canAdmin must be an array containing "transcription"
+                "permissions": {
+                    "canAdmin": ["transcription"],
+                },
             }
             meeting_token = await create_meeting_token(room_name, token_properties)
         except Exception:

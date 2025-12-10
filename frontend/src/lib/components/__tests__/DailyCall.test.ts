@@ -332,5 +332,321 @@ describe("DailyCall component", () => {
 
     expect(mockCallFrame.destroy).toHaveBeenCalled();
   });
+
+  describe("transcription functionality", () => {
+    beforeEach(() => {
+      global.fetch = vi.fn();
+    });
+
+    afterEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("should start transcription after joining call", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+      const authToken = "auth-token-123";
+
+      // Mock successful transcription start
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "started" }),
+      });
+
+      render(DailyCall, {
+        props: {
+          roomUrl: "https://test.daily.co/test-room",
+          authToken,
+          interviewId,
+        },
+      });
+
+      const joinButton = screen.getByText("Join Call");
+      await fireEvent.click(joinButton);
+
+      await waitFor(() => {
+        expect(mockCallFrame.join).toHaveBeenCalled();
+      });
+
+      // Simulate joined event
+      const onCalls = (mockCallFrame.on as any).mock.calls;
+      const joinedCall = onCalls.find((call: any[]) => call[0] === "joined-meeting");
+      const joinedHandler = joinedCall?.[1];
+
+      if (joinedHandler) {
+        await joinedHandler();
+        await tick();
+        await tick();
+      }
+
+      // Wait for transcription API call (with delay)
+      await waitFor(
+        () => {
+          expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining(`/api/daily/start-transcription/${interviewId}`),
+            expect.objectContaining({
+              method: "POST",
+              headers: expect.objectContaining({
+                Authorization: `Bearer ${authToken}`,
+              }),
+            })
+          );
+        },
+        { timeout: 3000 }
+      );
+    });
+
+    it("should not start transcription if interviewId is missing", async () => {
+      const authToken = "auth-token-123";
+
+      render(DailyCall, {
+        props: {
+          roomUrl: "https://test.daily.co/test-room",
+          authToken,
+          interviewId: null,
+        },
+      });
+
+      const joinButton = screen.getByText("Join Call");
+      await fireEvent.click(joinButton);
+
+      await waitFor(() => {
+        expect(mockCallFrame.join).toHaveBeenCalled();
+      });
+
+      // Simulate joined event
+      const onCalls = (mockCallFrame.on as any).mock.calls;
+      const joinedCall = onCalls.find((call: any[]) => call[0] === "joined-meeting");
+      const joinedHandler = joinedCall?.[1];
+
+      if (joinedHandler) {
+        await joinedHandler();
+        await tick();
+        await tick();
+      }
+
+      // Wait a bit to ensure transcription doesn't start
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Should not have called transcription API
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("should not start transcription if authToken is missing", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+
+      render(DailyCall, {
+        props: {
+          roomUrl: "https://test.daily.co/test-room",
+          authToken: null,
+          interviewId,
+        },
+      });
+
+      const joinButton = screen.getByText("Join Call");
+      await fireEvent.click(joinButton);
+
+      await waitFor(() => {
+        expect(mockCallFrame.join).toHaveBeenCalled();
+      });
+
+      // Simulate joined event
+      const onCalls = (mockCallFrame.on as any).mock.calls;
+      const joinedCall = onCalls.find((call: any[]) => call[0] === "joined-meeting");
+      const joinedHandler = joinedCall?.[1];
+
+      if (joinedHandler) {
+        await joinedHandler();
+        await tick();
+        await tick();
+      }
+
+      // Wait a bit to ensure transcription doesn't start
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Should not have called transcription API
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("should extract interviewId from roomUrl if not provided as prop", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+      const authToken = "auth-token-123";
+      const roomUrl = `https://test.daily.co/interview-${interviewId}`;
+
+      // Mock successful transcription start
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "started" }),
+      });
+
+      render(DailyCall, {
+        props: {
+          roomUrl,
+          authToken,
+          interviewId: null, // Not provided as prop
+        },
+      });
+
+      const joinButton = screen.getByText("Join Call");
+      await fireEvent.click(joinButton);
+
+      await waitFor(() => {
+        expect(mockCallFrame.join).toHaveBeenCalled();
+      });
+
+      // Simulate joined event
+      const onCalls = (mockCallFrame.on as any).mock.calls;
+      const joinedCall = onCalls.find((call: any[]) => call[0] === "joined-meeting");
+      const joinedHandler = joinedCall?.[1];
+
+      if (joinedHandler) {
+        await joinedHandler();
+        await tick();
+        await tick();
+      }
+
+      // Wait for transcription API call
+      await waitFor(
+        () => {
+          expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining(`/api/daily/start-transcription/${interviewId}`),
+            expect.any(Object)
+          );
+        },
+        { timeout: 3000 }
+      );
+    });
+
+    it("should handle transcription start errors gracefully", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+      const authToken = "auth-token-123";
+
+      // Mock failed transcription start
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        json: async () => ({ detail: "Failed to start transcription" }),
+      });
+
+      render(DailyCall, {
+        props: {
+          roomUrl: "https://test.daily.co/test-room",
+          authToken,
+          interviewId,
+        },
+      });
+
+      const joinButton = screen.getByText("Join Call");
+      await fireEvent.click(joinButton);
+
+      await waitFor(() => {
+        expect(mockCallFrame.join).toHaveBeenCalled();
+      });
+
+      // Simulate joined event
+      const onCalls = (mockCallFrame.on as any).mock.calls;
+      const joinedCall = onCalls.find((call: any[]) => call[0] === "joined-meeting");
+      const joinedHandler = joinedCall?.[1];
+
+      if (joinedHandler) {
+        await joinedHandler();
+        await tick();
+        await tick();
+      }
+
+      // Wait for error to appear
+      await waitFor(
+        () => {
+          expect(screen.getByText(/Failed to start transcription/i)).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
+    });
+
+    it("should stop transcription when leaving call", async () => {
+      mockCallFrame.stopTranscription = vi.fn();
+
+      render(DailyCall, {
+        props: {
+          roomUrl: "https://test.daily.co/test-room",
+        },
+      });
+
+      const joinButton = screen.getByText("Join Call");
+      await fireEvent.click(joinButton);
+
+      await waitFor(() => {
+        expect(mockCallFrame.join).toHaveBeenCalled();
+      });
+
+      // Simulate joined event
+      const onCalls = (mockCallFrame.on as any).mock.calls;
+      const joinedCall = onCalls.find((call: any[]) => call[0] === "joined-meeting");
+      const joinedHandler = joinedCall?.[1];
+
+      if (joinedHandler) {
+        await joinedHandler();
+        await tick();
+        await tick();
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText("Leave Call")).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      const leaveButton = screen.getByText("Leave Call");
+      await fireEvent.click(leaveButton);
+
+      expect(mockCallFrame.stopTranscription).toHaveBeenCalled();
+    });
+
+    it("should toggle captions visibility", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+      const authToken = "auth-token-123";
+
+      // Mock successful transcription start
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "started" }),
+      });
+
+      render(DailyCall, {
+        props: {
+          roomUrl: "https://test.daily.co/test-room",
+          authToken,
+          interviewId,
+        },
+      });
+
+      const joinButton = screen.getByText("Join Call");
+      await fireEvent.click(joinButton);
+
+      await waitFor(() => {
+        expect(mockCallFrame.join).toHaveBeenCalled();
+      });
+
+      // Simulate joined event
+      const onCalls = (mockCallFrame.on as any).mock.calls;
+      const joinedCall = onCalls.find((call: any[]) => call[0] === "joined-meeting");
+      const joinedHandler = joinedCall?.[1];
+
+      if (joinedHandler) {
+        await joinedHandler();
+        await tick();
+        await tick();
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText("Hide Captions")).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      const toggleButton = screen.getByText("Hide Captions");
+      await fireEvent.click(toggleButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Show Captions")).toBeInTheDocument();
+      });
+    });
+  });
 });
 

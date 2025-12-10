@@ -2,16 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRoom, getRoomUrl } from "../daily";
 
 describe("daily API client", () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
   const API_BASE_URL = "http://localhost:8000";
   const mockToken = "test-token-123";
 
   beforeEach(() => {
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn() as any;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     vi.clearAllMocks();
   });
 
@@ -26,14 +26,14 @@ describe("daily API client", () => {
         room_token: "meeting-token-123",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
 
       const result = await createRoom(request, mockToken);
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         `${API_BASE_URL}/api/daily/create-room`,
         {
           method: "POST",
@@ -61,7 +61,7 @@ describe("daily API client", () => {
         room_url: "https://test.daily.co/interview-123e4567-e89b-12d3-a456-426614174000",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
@@ -83,7 +83,7 @@ describe("daily API client", () => {
         detail: "Failed to create room: Interview ID mismatch",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 403,
         statusText: "Forbidden",
@@ -100,7 +100,7 @@ describe("daily API client", () => {
         interview_id: "123e4567-e89b-12d3-a456-426614174000",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: "Internal Server Error",
@@ -121,7 +121,7 @@ describe("daily API client", () => {
         detail: "Invalid or expired token",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 401,
         statusText: "Unauthorized",
@@ -143,14 +143,14 @@ describe("daily API client", () => {
         room_token: "meeting-token-456",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
 
       const result = await getRoomUrl(interviewId, mockToken);
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         `${API_BASE_URL}/api/daily/room/${interviewId}`,
         {
           method: "GET",
@@ -174,7 +174,7 @@ describe("daily API client", () => {
         room_url: "https://test.daily.co/interview-123e4567-e89b-12d3-a456-426614174000",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
@@ -194,7 +194,7 @@ describe("daily API client", () => {
         detail: "Room not found",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 404,
         statusText: "Not Found",
@@ -211,7 +211,7 @@ describe("daily API client", () => {
         detail: "Invalid or expired token",
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 401,
         statusText: "Unauthorized",
@@ -226,7 +226,7 @@ describe("daily API client", () => {
     it("should handle network errors gracefully", async () => {
       const interviewId = "123e4567-e89b-12d3-a456-426614174000";
 
-      (global.fetch as any).mockResolvedValueOnce({
+      (globalThis.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: "Internal Server Error",
@@ -236,6 +236,136 @@ describe("daily API client", () => {
       });
 
       await expect(getRoomUrl(interviewId, mockToken)).rejects.toThrow("Internal Server Error");
+    });
+  });
+
+  describe("startTranscription", () => {
+    it("should start transcription successfully", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+
+      const mockResponse = {
+        status: "started",
+      };
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const { startTranscription } = await import("../daily");
+      const result = await startTranscription(interviewId, mockToken);
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        `${API_BASE_URL}/api/daily/start-transcription/${interviewId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${mockToken}`,
+          },
+        }
+      );
+
+      expect(result).toEqual(mockResponse);
+      expect(result.status).toBe("started");
+    });
+
+    it("should throw error when API returns error response", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+
+      const errorResponse = {
+        detail: "Failed to start transcription: Room not found",
+      };
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        json: async () => errorResponse,
+      });
+
+      const { startTranscription } = await import("../daily");
+      await expect(startTranscription(interviewId, mockToken)).rejects.toThrow(
+        "Failed to start transcription: Room not found"
+      );
+    });
+
+    it("should handle unauthorized access", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+
+      const errorResponse = {
+        detail: "Invalid or expired token",
+      };
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        json: async () => errorResponse,
+      });
+
+      const { startTranscription } = await import("../daily");
+      await expect(startTranscription(interviewId, mockToken)).rejects.toThrow(
+        "Invalid or expired token"
+      );
+    });
+
+    it("should handle interview ID mismatch", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+
+      const errorResponse = {
+        detail: "Interview ID in path does not match the token's interview ID",
+      };
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: async () => errorResponse,
+      });
+
+      const { startTranscription } = await import("../daily");
+      await expect(startTranscription(interviewId, mockToken)).rejects.toThrow(
+        "Interview ID in path does not match the token's interview ID"
+      );
+    });
+
+    it("should handle network errors gracefully", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        json: async () => {
+          throw new Error("JSON parse error");
+        },
+      });
+
+      const { startTranscription } = await import("../daily");
+      await expect(startTranscription(interviewId, mockToken)).rejects.toThrow(
+        "Internal Server Error"
+      );
+    });
+
+    it("should handle Daily.co API errors", async () => {
+      const interviewId = "123e4567-e89b-12d3-a456-426614174000";
+
+      const errorResponse = {
+        detail: "Daily.co API error: Transcription already started",
+      };
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: "Bad Request",
+        json: async () => errorResponse,
+      });
+
+      const { startTranscription } = await import("../daily");
+      await expect(startTranscription(interviewId, mockToken)).rejects.toThrow(
+        "Daily.co API error: Transcription already started"
+      );
     });
   });
 });

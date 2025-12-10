@@ -94,39 +94,56 @@
 <div class="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
   <div class="container mx-auto px-4 py-8">
     <div class="mb-8">
-      <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2">Host Dashboard</h1>
+      <h1
+        class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2"
+      >
+        Host Dashboard
+      </h1>
       <p class="text-gray-400">Manage your interview session</p>
     </div>
 
     {#if data.error}
-      <div class="bg-red-900/30 border border-red-700/50 text-red-300 px-6 py-4 rounded-xl mb-6 backdrop-blur-sm">
+      <div
+        class="bg-red-900/30 border border-red-700/50 text-red-300 px-6 py-4 rounded-xl mb-6 backdrop-blur-sm"
+      >
         {data.error}
       </div>
     {:else}
       <div class="space-y-6">
         <!-- Interview Info -->
-        <div class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50">
+        <div
+          class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+        >
           <h2 class="text-xl font-bold text-white mb-3">Interview Information</h2>
-          <p class="text-gray-300"><span class="text-gray-500">Interview ID:</span> <span class="font-mono text-blue-400">{data.interviewId}</span></p>
+          <p class="text-gray-300">
+            <span class="text-gray-500">Interview ID:</span>
+            <span class="font-mono text-blue-400">{data.interviewId}</span>
+          </p>
         </div>
 
         <!-- Interview Details Display -->
         {#if data.interview}
-          <div class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50">
+          <div
+            class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+          >
             <h2 class="text-xl font-bold text-white mb-6">Interview Details</h2>
 
             <div class="space-y-6">
               <div>
                 <h3 class="block text-sm font-semibold text-gray-300 mb-3">Job Description</h3>
                 <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
-                  <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">{data.interview.job_description}</p>
+                  <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    {data.interview.job_description}
+                  </p>
                 </div>
               </div>
 
               <div>
                 <h3 class="block text-sm font-semibold text-gray-300 mb-3">Candidate Resume</h3>
                 <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
-                  <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">{data.interview.resume_text}</p>
+                  <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    {data.interview.resume_text}
+                  </p>
                 </div>
               </div>
             </div>
@@ -134,11 +151,15 @@
         {/if}
 
         <!-- Briefing Generation -->
-        <div class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50">
+        <div
+          class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+        >
           <h2 class="text-xl font-bold text-white mb-4">Generate Briefing</h2>
 
           {#if error}
-            <div class="bg-red-900/30 border border-red-700/50 text-red-300 px-6 py-4 rounded-xl mb-4 backdrop-blur-sm">
+            <div
+              class="bg-red-900/30 border border-red-700/50 text-red-300 px-6 py-4 rounded-xl mb-4 backdrop-blur-sm"
+            >
               {error}
             </div>
           {/if}
@@ -163,14 +184,20 @@
           {#if briefing}
             <div class="mt-6 p-5 bg-slate-900/50 rounded-lg border border-slate-600">
               <h3 class="text-lg font-semibold text-white mb-3">Generated Briefing</h3>
-              <div class="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap leading-relaxed">{briefing}</div>
+              <div
+                class="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap leading-relaxed"
+              >
+                {briefing}
+              </div>
             </div>
           {/if}
         </div>
 
         <!-- Vapi Orb Component -->
         {#if briefing}
-          <div class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50">
+          <div
+            class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+          >
             <h2 class="text-xl font-bold text-white mb-4">Voice Briefing</h2>
             <VapiOrb
               publicKey={import.meta.env.VITE_VAPI_PUBLIC_KEY || ""}
@@ -183,7 +210,9 @@
         {/if}
 
         <!-- Daily.co Video Call -->
-        <div class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50">
+        <div
+          class="bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl p-6 border border-slate-700/50"
+        >
           <h2 class="text-xl font-bold text-white mb-4">Video Call</h2>
 
           {#if !roomUrl}
@@ -195,7 +224,12 @@
               {isLoadingRoom ? "Creating Room..." : "Start Video Call"}
             </button>
           {:else}
-            <DailyCall {roomUrl} token={roomToken} />
+            <DailyCall
+              {roomUrl}
+              token={roomToken}
+              authToken={token}
+              interviewId={data.interviewId}
+            />
           {/if}
         </div>
       </div>
