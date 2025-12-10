@@ -3,6 +3,7 @@
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -268,3 +269,182 @@ async def test_create_meeting_token_returns_none_on_empty(mock_client_class):
     result = await create_meeting_token("test-room")
     
     assert result is None
+
+
+@pytest.mark.integration
+@patch("app.api.daily.httpx.AsyncClient")
+def test_start_transcription_success(
+    mock_client_class,
+    mock_daily_api_key,
+    override_auth_dependency,
+):
+    """Test successfully starting transcription for a room."""
+    interview_id = "123e4567-e89b-12d3-a456-426614174000"
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"status": "started"}
+    mock_response.raise_for_status = MagicMock()
+    mock_response.text = '{"status": "started"}'
+    
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_client_class.return_value = mock_client
+    
+    client = TestClient(app)
+    response = client.post(
+        f"/api/daily/start-transcription/{interview_id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "started"
+    
+    # Verify the correct URL was called
+    mock_client.post.assert_called_once()
+    call_args = mock_client.post.call_args
+    assert f"/rooms/interview-{interview_id}/transcription/start" in call_args[0][0]
+
+
+@pytest.mark.integration
+@patch("app.api.daily.DAILY_API_KEY", None)
+def test_start_transcription_missing_api_key(override_auth_dependency):
+    """Test that starting transcription fails when Daily.co API key is missing."""
+    interview_id = "123e4567-e89b-12d3-a456-426614174000"
+    
+    client = TestClient(app)
+    response = client.post(
+        f"/api/daily/start-transcription/{interview_id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    
+    assert response.status_code == 500
+    assert "Daily.co API key" in response.json().get("detail", "")
+
+
+@pytest.mark.integration
+def test_start_transcription_mismatched_interview_id(mock_daily_api_key, override_auth_dependency):
+    """Test that starting transcription fails when interview_id doesn't match token."""
+    client = TestClient(app)
+    response = client.post(
+        "/api/daily/start-transcription/different-interview-id",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    
+    assert response.status_code == 403
+    assert "Interview ID in path does not match" in response.json()["detail"]
+
+
+@pytest.mark.integration
+@patch("app.api.daily.httpx.AsyncClient")
+def test_start_transcription_api_error(
+    mock_client_class,
+    mock_daily_api_key,
+    override_auth_dependency,
+):
+    """Test handling of Daily.co API errors when starting transcription."""
+    interview_id = "123e4567-e89b-12d3-a456-426614174000"
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    mock_response.text = '{"error": "Transcription already started"}'
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "Bad Request", request=MagicMock(), response=mock_response
+    )
+    
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_client_class.return_value = mock_client
+    
+    client = TestClient(app)
+    response = client.post(
+        f"/api/daily/start-transcription/{interview_id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    
+    assert response.status_code == 400
+    assert "Daily.co API error" in response.json().get("detail", "")
+
+
+@pytest.mark.integration
+@patch("app.api.daily.create_daily_room")
+@patch("app.api.daily.create_meeting_token")
+def test_create_room_with_transcription_properties(
+    mock_create_token,
+    mock_create_room,
+    mock_daily_api_key,
+    override_auth_dependency,
+):
+    """Test that room creation includes transcription storage properties."""
+    from app.api.daily import create_daily_room
+    
+    mock_room_data = {
+        "id": "interview-123e4567-e89b-12d3-a456-426614174000",
+        "name": "interview-123e4567-e89b-12d3-a456-426614174000",
+        "url": "https://test.daily.co/interview-123e4567-e89b-12d3-a456-426614174000",
+    }
+    mock_create_room.return_value = mock_room_data
+    mock_create_token.return_value = "meeting-token-123"
+    
+    client = TestClient(app)
+    response = client.post(
+        "/api/daily/create-room",
+        json={"interview_id": "123e4567-e89b-12d3-a456-426614174000"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    
+    assert response.status_code == 200
+    
+    # Verify that create_daily_room was called with transcription properties
+    mock_create_room.assert_called_once()
+    call_args = mock_create_room.call_args
+    properties = call_args[1]["properties"]
+    
+    assert properties["enable_transcription_storage"] is True
+    assert properties["enable_chat"] is True
+    assert properties["enable_screenshare"] is True
+
+
+@pytest.mark.integration
+@patch("app.api.daily.create_daily_room")
+@patch("app.api.daily.create_meeting_token")
+def test_create_room_token_with_transcription_permissions(
+    mock_create_token,
+    mock_create_room,
+    mock_daily_api_key,
+    override_auth_dependency,
+):
+    """Test that meeting token includes transcription admin permissions."""
+    mock_room_data = {
+        "id": "interview-123e4567-e89b-12d3-a456-426614174000",
+        "name": "interview-123e4567-e89b-12d3-a456-426614174000",
+        "url": "https://test.daily.co/interview-123e4567-e89b-12d3-a456-426614174000",
+    }
+    mock_create_room.return_value = mock_room_data
+    mock_create_token.return_value = "meeting-token-123"
+    
+    client = TestClient(app)
+    response = client.post(
+        "/api/daily/create-room",
+        json={"interview_id": "123e4567-e89b-12d3-a456-426614174000"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    
+    assert response.status_code == 200
+    
+    # Verify that create_meeting_token was called with transcription permissions
+    mock_create_token.assert_called_once()
+    call_args = mock_create_token.call_args
+    # properties is the second positional argument
+    properties = call_args[0][1]
+    
+    assert properties["is_owner"] is True
+    assert properties["enable_live_captions_ui"] is True
+    assert "permissions" in properties
+    assert "canAdmin" in properties["permissions"]
+    assert "transcription" in properties["permissions"]["canAdmin"]

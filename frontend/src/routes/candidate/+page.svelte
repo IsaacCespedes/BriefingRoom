@@ -105,7 +105,12 @@
               {isLoadingRoom ? "Creating Room..." : "Start Video Call"}
             </button>
           {:else}
-            <DailyCall {roomUrl} token={roomToken} />
+            <DailyCall
+              {roomUrl}
+              token={roomToken}
+              authToken={token}
+              interviewId={data.interviewId}
+            />
           {/if}
         </div>
       </div>

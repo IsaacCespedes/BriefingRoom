@@ -52,3 +52,26 @@ export async function getRoomUrl(interviewId: string, token: string): Promise<Cr
 
   return response.json();
 }
+
+/**
+ * Start transcription for a Daily.co room
+ */
+export async function startTranscription(
+  interviewId: string,
+  token: string
+): Promise<{ status: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/daily/start-transcription/${interviewId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || `Failed to start transcription: ${response.statusText}`);
+  }
+
+  return response.json();
+}
