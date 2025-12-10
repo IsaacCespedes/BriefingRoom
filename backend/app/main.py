@@ -5,7 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, briefing, daily, health, interviews, vapi
+from app.api import auth, briefing, daily, health, interviews, transcripts, vapi
 
 app = FastAPI(title="Bionic Interviewer API", version="0.1.0")
 
@@ -28,5 +28,6 @@ app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(briefing.router, prefix="/api", tags=["briefing"])
 app.include_router(daily.router, prefix="/api", tags=["daily"])
 app.include_router(interviews.router, prefix="/api", tags=["interviews"])
+app.include_router(transcripts.router, prefix="/api", tags=["transcripts"])
 app.include_router(vapi.router, prefix="/api", tags=["vapi"])
 

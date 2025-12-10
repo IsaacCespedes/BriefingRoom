@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from app.api.auth import validate_token_dependency, TokenInfoResponse
+from app.services.transcript_service import fetch_and_store_transcript
+from app.models.transcript import TranscriptResponse
 
 router = APIRouter()
 
@@ -270,6 +272,12 @@ async def start_transcription(
                 response.raise_for_status()
                 return response.json()
             except httpx.HTTPStatusError as e:
+                # Check if transcription is already active - this is fine, treat as success
+                error_text = e.response.text.lower()
+                if "active stream" in error_text or "already" in error_text:
+                    # Transcription is already active, return success
+                    return {"status": "already_active", "message": "Transcription is already active"}
+                
                 raise HTTPException(
                     status_code=e.response.status_code,
                     detail=f"Daily.co API error: {e.response.text}",
@@ -339,5 +347,47 @@ async def get_room(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get Daily.co room: {str(e)}",
+        )
+
+
+@router.post("/daily/fetch-transcript/{interview_id}", response_model=TranscriptResponse)
+async def fetch_transcript(
+    interview_id: str,
+    token_info: TokenInfoResponse = Depends(validate_token_dependency),
+):
+    """
+    Fetch transcript from Daily.co and store in database.
+    
+    This endpoint:
+    1. Calls Daily.co API to get transcript for the room
+    2. Parses WebVTT format to plain text
+    3. Extracts metadata (duration, timestamps, etc.)
+    4. Stores transcript in database
+    
+    Note: Transcripts may not be immediately available after a call ends.
+    Daily.co processes transcripts asynchronously (may take 1-5 minutes).
+    If transcript is not ready, returns a pending transcript record.
+    """
+    check_daily_api_key()
+    
+    # Validate that the interview_id in the path matches the token's interview_id
+    if interview_id != token_info.interview_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Interview ID in path does not match the token's interview ID",
+        )
+    
+    try:
+        room_name = f"interview-{interview_id}"
+        transcript_data = await fetch_and_store_transcript(room_name, interview_id)
+        
+        # Convert database dict to response model
+        return TranscriptResponse(**transcript_data)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch transcript: {str(e)}",
         )
 

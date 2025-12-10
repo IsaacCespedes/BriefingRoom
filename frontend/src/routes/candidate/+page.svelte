@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import type { PageData } from "./$types";
   import DailyCall from "$lib/components/DailyCall.svelte";
+  import TranscriptDownload from "$lib/components/TranscriptDownload.svelte";
   import { createRoom, getRoomUrl } from "$lib/daily";
 
   export let data: PageData;
@@ -110,9 +111,19 @@
               token={roomToken}
               authToken={token}
               interviewId={data.interviewId}
+              userRole="candidate"
             />
           {/if}
         </div>
+
+        <!-- Transcript Download -->
+        {#if token && data.interviewId}
+          <div
+            class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
+          >
+            <TranscriptDownload interviewId={data.interviewId} {token} />
+          </div>
+        {/if}
       </div>
     {/if}
   </div>
