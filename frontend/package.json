@@ -17,7 +17,8 @@
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.83.1",
-    "@vapi-ai/web": "^2.3.10"
+    "@vapi-ai/web": "^2.3.10",
+    "@vladmandic/face-api": "^1.7.15"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^3.0.0",

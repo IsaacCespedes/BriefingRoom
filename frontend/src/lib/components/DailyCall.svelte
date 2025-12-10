@@ -2,6 +2,8 @@
   import { onMount, onDestroy, tick } from "svelte";
   import DailyIframe from "@daily-co/daily-js";
   import ClosedCaptions from "./ClosedCaptions.svelte";
+  import EmotionOverlay from "./EmotionOverlay.svelte";
+  import { EmotionDetector, type EmotionScores } from "$lib/emotionDetection";
 
   export let roomUrl: string;
   export let token: string | null = null; // Daily.co room token (for joining the call)
@@ -19,13 +21,42 @@
   let isTranscriptionActive = false;
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
+  // Emotion detection state
+  let showEmotions = false;
+  let emotionDetector: EmotionDetector | null = null;
+  let isModelsLoading = false;
+  let modelsLoaded = false;
+  let detectionInterval: number | null = null;
+  let localEmotions: EmotionScores | null = null;
+  let remoteEmotions: EmotionScores | null = null;
+  let localParticipantName: string | null = null;
+  let remoteParticipantName: string | null = null;
+  // Hidden video elements for emotion detection
+  let hiddenVideoElements: Map<string, HTMLVideoElement> = new Map();
+  // Store video tracks by participant ID
+  let participantVideoTracks: Map<string, MediaStreamTrack> = new Map();
+  let trackStartedHandler: ((event: any) => void) | null = null;
+
   $: if (!roomUrl) {
     error = "Room URL is required";
   } else {
     error = null;
   }
 
-  onMount(() => {
+  onMount(async () => {
+    // Initialize emotion detector and load models eagerly
+    emotionDetector = new EmotionDetector();
+    isModelsLoading = true;
+    try {
+      await emotionDetector.loadModels();
+      modelsLoaded = true;
+      console.log("[DailyCall] Emotion detection models loaded");
+    } catch (e) {
+      console.error("[DailyCall] Failed to load emotion models:", e);
+    } finally {
+      isModelsLoading = false;
+    }
+
     // Initialize the frame element reference when component mounts
     return () => {
       if (callFrame) {
@@ -36,10 +67,12 @@
         }
         callFrame = null;
       }
+      stopEmotionDetection();
     };
   });
 
   onDestroy(() => {
+    stopEmotionDetection();
     if (callFrame) {
       try {
         callFrame.destroy();
@@ -101,11 +134,62 @@
               error = null;
               // Start transcription after joining
               await startTranscription();
+              // Start emotion detection if enabled
+              if (showEmotions && modelsLoaded) {
+                // Wait a bit for video tracks to be ready
+                setTimeout(() => {
+                  startEmotionDetection();
+                }, 2000);
+              }
+            })
+            .on("participant-joined", () => {
+              // When a participant joins, video tracks may become available
+              // Restart detection if it's already running
+              if (showEmotions && modelsLoaded && detectionInterval !== null) {
+                // Tracks will be picked up in the next detection cycle
+              }
+            })
+            .on("participant-updated", () => {
+              // When participant tracks update, ensure we have video elements
+              if (showEmotions && modelsLoaded && detectionInterval !== null) {
+                // Tracks will be picked up in the next detection cycle
+              }
+            })
+            .on("track-started", (event: any) => {
+              // Listen for track-started events to capture video tracks
+              if (event.track && event.track.kind === "video") {
+                const participantId =
+                  event.participant?.session_id ||
+                  event.participant?.user_id ||
+                  event.participant?.participant_id ||
+                  event.participant?.id;
+                
+                if (participantId && event.track) {
+                  console.log(`[DailyCall] Track started for participant ${participantId}`);
+                  participantVideoTracks.set(participantId, event.track);
+                }
+              }
+            })
+            .on("track-stopped", (event: any) => {
+              // Clean up when tracks stop
+              if (event.track && event.track.kind === "video") {
+                const participantId =
+                  event.participant?.session_id ||
+                  event.participant?.user_id ||
+                  event.participant?.participant_id ||
+                  event.participant?.id;
+                
+                if (participantId) {
+                  console.log(`[DailyCall] Track stopped for participant ${participantId}`);
+                  participantVideoTracks.delete(participantId);
+                }
+              }
             })
             .on("left-meeting", async () => {
               isJoined = false;
               isJoining = false;
               isTranscriptionActive = false;
+              stopEmotionDetection();
 
               // Mark transcript as complete and send to backend
               if (interviewId && authToken) {
@@ -317,6 +401,280 @@
   function toggleCaptions() {
     showCaptions = !showCaptions;
   }
+
+  function toggleEmotions() {
+    showEmotions = !showEmotions;
+    if (showEmotions && isJoined && modelsLoaded) {
+      startEmotionDetection();
+    } else {
+      stopEmotionDetection();
+    }
+  }
+
+  /**
+   * Get video elements from Daily.co participant tracks
+   * Creates hidden video elements from participant video tracks
+   */
+  async function getVideoElements(): Promise<Array<{ element: HTMLVideoElement; participantId: string; name: string }>> {
+    const videos: Array<{ element: HTMLVideoElement; participantId: string; name: string }> = [];
+
+    if (!callFrame || !isJoined) {
+      return videos;
+    }
+
+    try {
+      const participants = callFrame.participants();
+      if (!participants) {
+        return videos;
+      }
+
+      const localParticipant = participants.local;
+      const allParticipants = Object.values(participants) as any[];
+
+      for (const participant of allParticipants) {
+        // Skip if participant doesn't have video track
+        if (!participant.tracks?.video) {
+          console.log(`[DailyCall] Participant ${participant.session_id || participant.user_id || 'unknown'} has no video track`);
+          continue;
+        }
+        
+        if (participant.tracks.video.state !== "playable") {
+          console.log(`[DailyCall] Participant ${participant.session_id || participant.user_id || 'unknown'} video track state: ${participant.tracks.video.state}`);
+          continue;
+        }
+
+        // Try multiple ways to get the video track
+        let videoTrack = participant.tracks.video.track;
+        
+        // If track is not directly available, try to get it from stored tracks (from track-started event)
+        if (!videoTrack) {
+          const participantId =
+            participant.session_id ||
+            participant.user_id ||
+            participant.participant_id ||
+            participant.id;
+          videoTrack = participantId ? participantVideoTracks.get(participantId) : undefined;
+        }
+        
+        // If track is not directly available, try to get it from the track object
+        if (!videoTrack && participant.tracks.video.persistentTrack) {
+          videoTrack = participant.tracks.video.persistentTrack;
+        }
+        
+        // For local participant, try to get from input devices
+        if (!videoTrack && participant.local) {
+          try {
+            const inputDevices = await callFrame.getInputDevices();
+            if (inputDevices?.camera) {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              videoTrack = stream.getVideoTracks()[0];
+              console.log(`[DailyCall] Got local video track from getUserMedia`);
+            }
+          } catch (e) {
+            console.warn(`[DailyCall] Could not get local video track:`, e);
+          }
+        }
+        
+        if (!videoTrack) {
+          console.log(`[DailyCall] Participant ${participant.session_id || participant.user_id || 'unknown'} has no accessible video track. Track object:`, participant.tracks.video);
+          // Log all properties of the track object to debug
+          console.log(`[DailyCall] Available track properties:`, Object.keys(participant.tracks.video));
+          console.log(`[DailyCall] Stored tracks:`, Array.from(participantVideoTracks.keys()));
+          continue;
+        }
+        
+        console.log(`[DailyCall] Found playable video track for participant ${participant.session_id || participant.user_id || 'unknown'}`);
+
+        // Get participant ID
+        const participantId =
+          participant.session_id ||
+          participant.user_id ||
+          participant.participant_id ||
+          participant.id ||
+          `participant-${Date.now()}`;
+
+        // Get or create hidden video element for this participant
+        let videoElement = hiddenVideoElements.get(participantId);
+
+        if (!videoElement) {
+          // Create a new hidden video element
+          videoElement = document.createElement("video");
+          videoElement.autoplay = true;
+          videoElement.playsInline = true;
+          videoElement.muted = true; // Mute to prevent feedback
+          videoElement.style.position = "absolute";
+          videoElement.style.width = "1px";
+          videoElement.style.height = "1px";
+          videoElement.style.opacity = "0";
+          videoElement.style.pointerEvents = "none";
+          videoElement.style.zIndex = "-1";
+          document.body.appendChild(videoElement);
+          hiddenVideoElements.set(participantId, videoElement);
+        }
+
+        // Update video element with the track if it's not already set
+        if (!videoElement.srcObject) {
+          const mediaStream = new MediaStream([videoTrack]);
+          videoElement.srcObject = mediaStream;
+          console.log(`[DailyCall] Created video element for ${name}, waiting for video to load...`);
+          
+          // Wait for video metadata to load and start playing
+          await new Promise<void>((resolve) => {
+            const onLoadedMetadata = () => {
+              videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
+              // Try to play the video
+              videoElement.play().catch((e) => {
+                console.warn(`[DailyCall] Could not autoplay video for ${name}:`, e);
+              });
+              resolve();
+            };
+            videoElement.addEventListener("loadedmetadata", onLoadedMetadata);
+            // Timeout after 5 seconds
+            setTimeout(() => {
+              videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
+              resolve();
+            }, 5000);
+          });
+        } else {
+          // Ensure video is playing
+          if (videoElement.paused) {
+            videoElement.play().catch((e) => {
+              console.warn(`[DailyCall] Could not play video for ${name}:`, e);
+            });
+          }
+        }
+
+        // Check if video is ready and has dimensions
+        if (videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+          // Determine participant name
+          const isLocal = participant === localParticipant || participant.local === true;
+          const name =
+            participant.user_name ||
+            (isLocal
+              ? userRole === "host"
+                ? "Host"
+                : "Candidate"
+              : userRole === "host"
+                ? "Candidate"
+                : "Host");
+
+          videos.push({ element: videoElement, participantId, name });
+        }
+      }
+    } catch (e) {
+      console.warn("[DailyCall] Error getting video elements from tracks:", e);
+    }
+
+    return videos;
+  }
+
+  /**
+   * Start emotion detection loop
+   */
+  function startEmotionDetection() {
+    if (!emotionDetector || !modelsLoaded || !isJoined || detectionInterval !== null) {
+      return;
+    }
+
+    console.log("[DailyCall] Starting emotion detection");
+
+    // Detection at 10 FPS = 100ms interval
+    detectionInterval = window.setInterval(async () => {
+      if (!emotionDetector || !isJoined || !showEmotions) {
+        return;
+      }
+
+      try {
+        const videos = await getVideoElements();
+        console.log(`[DailyCall] Found ${videos.length} video element(s) for emotion detection`);
+        
+        if (videos.length === 0) {
+          console.log("[DailyCall] No video elements available. Participants:", callFrame?.participants());
+          return;
+        }
+        
+        // Detect emotions for each video
+        for (const { element, participantId, name } of videos) {
+          try {
+            console.log(`[DailyCall] Detecting emotions for ${name} (${participantId}), video readyState: ${element.readyState}, dimensions: ${element.videoWidth}x${element.videoHeight}`);
+            
+            const detection = await emotionDetector.detectEmotions(element, participantId, name);
+            
+            if (detection) {
+              console.log(`[DailyCall] Detected emotions for ${name}:`, detection.emotions);
+              
+              // Determine if this is local or remote participant
+              const participants = callFrame?.participants();
+              const localParticipant = participants?.local;
+              const isLocal = localParticipant && (
+                localParticipant.session_id === participantId ||
+                localParticipant.user_id === participantId ||
+                localParticipant.participant_id === participantId ||
+                localParticipant.id === participantId
+              );
+
+              console.log(`[DailyCall] Participant ${name} is ${isLocal ? 'local' : 'remote'}`);
+
+              if (isLocal) {
+                localEmotions = detection.emotions;
+                localParticipantName = name;
+                console.log("[DailyCall] Updated localEmotions:", localEmotions);
+              } else {
+                remoteEmotions = detection.emotions;
+                remoteParticipantName = name;
+                console.log("[DailyCall] Updated remoteEmotions:", remoteEmotions);
+              }
+            } else {
+              console.log(`[DailyCall] No face detected for ${name}`);
+            }
+          } catch (e) {
+            console.warn(`[DailyCall] Error detecting emotions for ${name}:`, e);
+          }
+        }
+      } catch (e) {
+        console.warn("[DailyCall] Error in emotion detection loop:", e);
+      }
+    }, 100); // 10 FPS = 100ms
+  }
+
+  /**
+   * Stop emotion detection loop
+   */
+  function stopEmotionDetection() {
+    if (detectionInterval !== null) {
+      clearInterval(detectionInterval);
+      detectionInterval = null;
+      console.log("[DailyCall] Stopped emotion detection");
+    }
+    localEmotions = null;
+    remoteEmotions = null;
+    localParticipantName = null;
+    remoteParticipantName = null;
+
+    // Clean up hidden video elements
+    hiddenVideoElements.forEach((videoElement) => {
+      if (videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      videoElement.srcObject = null;
+      if (videoElement.parentNode) {
+        videoElement.parentNode.removeChild(videoElement);
+      }
+    });
+    hiddenVideoElements.clear();
+    participantVideoTracks.clear();
+  }
+
+  // Auto-start detection when emotions are enabled and call is joined
+  $: if (showEmotions && isJoined && modelsLoaded && detectionInterval === null) {
+    startEmotionDetection();
+  }
+
+  // Stop detection when call ends
+  $: if (!isJoined && detectionInterval !== null) {
+    stopEmotionDetection();
+  }
 </script>
 
 <div class="daily-call-container">
@@ -352,6 +710,24 @@
           {showCaptions ? "Hide Captions" : "Show Captions"}
         </button>
         <button
+          on:click={toggleEmotions}
+          disabled={!modelsLoaded || isModelsLoading}
+          class="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors {showEmotions
+            ? 'bg-blue-600 hover:bg-blue-700'
+            : 'bg-gray-600 hover:bg-gray-700'} disabled:opacity-50 disabled:cursor-not-allowed"
+          title={isModelsLoading
+            ? "Loading emotion models..."
+            : showEmotions
+              ? "Hide Emotions"
+              : "Show Emotions"}
+        >
+          {isModelsLoading
+            ? "Loading..."
+            : showEmotions
+              ? "Hide Emotions"
+              : "Show Emotions"}
+        </button>
+        <button
           on:click={leaveCall}
           class="px-6 py-3 font-semibold text-white bg-red-500 rounded-full transition-colors hover:bg-red-600"
         >
@@ -380,6 +756,36 @@
           {interviewId}
           {userRole}
         />
+      {/if}
+
+      <!-- Emotion Overlays -->
+      {#if showEmotions && isJoined && modelsLoaded}
+        {#if localEmotions}
+          <EmotionOverlay
+            emotions={localEmotions}
+            participantName={localParticipantName}
+            position="top-left"
+          />
+        {/if}
+        {#if remoteEmotions}
+          <EmotionOverlay
+            emotions={remoteEmotions}
+            participantName={remoteParticipantName}
+            position="top-right"
+          />
+        {/if}
+      {/if}
+
+      <!-- Loading indicator for models -->
+      {#if isModelsLoading}
+        <div
+          class="absolute inset-0 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm z-40"
+        >
+          <div class="text-center text-white">
+            <div class="mb-2 text-lg font-semibold">Loading Emotion Detection</div>
+            <div class="text-sm text-gray-300">Loading AI models...</div>
+          </div>
+        </div>
       {/if}
     </div>
   </div>
