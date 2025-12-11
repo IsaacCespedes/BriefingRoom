@@ -7,7 +7,8 @@
   export let assistantId: string;
   export let interviewId: string;
   export let token: string = ""; // Authentication token for backend API
-  export let briefing: string;
+  export let textToRead: string;
+  export let startLabel: string = "Briefing";
 
   let vapi: VapiType | null = null;
   let isConnected = false;
@@ -156,7 +157,7 @@
     return true;
   }
 
-  async function startBriefing() {
+  async function startReading() {
     if (!vapi) {
       error = "Vapi not initialized";
       return;
@@ -182,7 +183,7 @@
 
       // Start Vapi call with the briefing as the first message override
       await vapi.start({
-        firstMessage: briefing,
+        firstMessage: textToRead,
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Failed to start briefing";
@@ -199,7 +200,7 @@
     }
   }
 
-  function stopBriefing() {
+  function stopReading() {
     if (!vapi || !isConnected) return;
 
     try {
@@ -232,13 +233,13 @@
       </div>
     {:else if vapi}
       <button
-        on:click={isConnected ? stopBriefing : startBriefing}
+        on:click={isConnected ? stopReading : startReading}
         class="px-6 py-3 rounded-full text-white font-semibold transition-colors {isConnected
           ? 'bg-red-500 hover:bg-red-600'
           : 'bg-blue-500 hover:bg-blue-600'}"
         disabled={!vapi}
       >
-        {isConnected ? "Stop Briefing" : "Start Briefing"}
+        {isConnected ? `Stop ${startLabel}` : `Start ${startLabel}`}
       </button>
 
       {#if isConnected}

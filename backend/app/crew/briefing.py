@@ -37,11 +37,11 @@ def create_briefing_crew(llm: Optional[ChatOpenAI] = None) -> Crew:
     scrape_tool = ScrapeWebsiteTool()
     tools.append(scrape_tool)
 
-    # Define agents with tools
+    # Define agents with tools and teammate tone
     resume_analyst = Agent(
         role="Resume Analyst",
         goal="Analyze candidate resumes thoroughly and extract key information about skills, experience, and qualifications. If the resume is provided as a file path or URL, use the available tools to extract the text first.",
-        backstory="You are an experienced HR professional with expertise in analyzing resumes and identifying candidate strengths and potential fit for roles. You are skilled at extracting information from various document formats including PDFs, Word documents, and web pages.",
+        backstory="You're a trusted teammate who's reviewed hundreds of resumes. You have a sharp eye for detail and can quickly identify what matters. You communicate your findings directly and honestly, like you're prepping a colleague for an important meeting.",
         verbose=True,
         llm=llm,
         tools=tools,
@@ -50,7 +50,7 @@ def create_briefing_crew(llm: Optional[ChatOpenAI] = None) -> Crew:
     briefing_generator = Agent(
         role="Briefing Generator",
         goal="Create comprehensive interview briefings with candidate summaries and strategic questions. If the job description is provided as a file path or URL, use the available tools to extract the text first.",
-        backstory="You are a senior recruiter who prepares detailed briefings for interview hosts, highlighting key candidate information and suggesting strategic questions to ask during interviews. You can work with documents in various formats.",
+        backstory="You're a senior teammate who's great at preparing interview briefings. You write like you're sharing insights with a colleague - direct, actionable, and focused on what really matters. You highlight key candidate information and suggest strategic questions that will help your teammate conduct an effective interview.",
         verbose=True,
         llm=llm,
         tools=tools,
@@ -77,7 +77,7 @@ def create_briefing_crew(llm: Optional[ChatOpenAI] = None) -> Crew:
         
         After extracting the text (if needed), provide a detailed analysis with structured information about their qualifications.""",
         agent=resume_analyst,
-        expected_output="A detailed analysis of the candidate's resume with structured information about their qualifications.",
+        expected_output="A concise, bullet-point summary of the candidate's qualifications, highlighting key skills and experience. Keep it brief and to the point, like you're sharing quick notes with a teammate.",
     )
 
     generate_briefing_task = Task(
@@ -100,7 +100,7 @@ def create_briefing_crew(llm: Optional[ChatOpenAI] = None) -> Crew:
         
         After extracting the job description text (if needed), create the briefing based on both the resume analysis and job description.""",
         agent=briefing_generator,
-        expected_output="A complete interview briefing document with candidate summary and strategic questions.",
+        expected_output="A short and informal interview briefing. Include a brief candidate summary and a few key strategic questions. Write it like you're sending a quick prep message to a teammate.",
         context=[analyze_resume_task],
     )
 
