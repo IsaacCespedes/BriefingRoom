@@ -6,6 +6,9 @@
   import TranscriptDownload from "$lib/components/TranscriptDownload.svelte";
   import { generateBriefing } from "$lib/briefing";
   import { createRoom, getRoomUrl } from "$lib/daily";
+  import { generateReview, getReview } from "$lib/review";
+  import { getTranscript } from "$lib/transcripts";
+  import { getTranscript as getLocalTranscript, transcriptToText } from "$lib/transcriptStorage";
 
   export let data: PageData;
 
@@ -16,6 +19,10 @@
   let roomUrl: string | null = null;
   let roomToken: string | null = null;
   let isLoadingRoom = false;
+  let review: string | null = null;
+  let isLoadingReview = false;
+  let reviewError: string | null = null;
+  let transcriptStatus: string | null = null;
 
   // Get job description and resume from server data
   // Handle text, file paths, or URLs
@@ -26,16 +33,48 @@
   $: jobDescriptionSource = data.interview?.job_description_source || "text";
   $: resumeSource = data.interview?.resume_source || "text";
 
-  onMount(() => {
+  onMount(async () => {
     // Get token from URL or session storage
     const urlParams = new URLSearchParams(window.location.search);
     token = urlParams.get("token") || sessionStorage.getItem("token");
   });
 
+  async function handleGenerateReview() {
+    if (!token || !data.interviewId) {
+      reviewError = "Token or interview ID not available";
+      return;
+    }
+
+    isLoadingReview = true;
+    reviewError = null;
+
+    try {
+      // Use local storage transcript ONLY
+      const localTranscript = getLocalTranscript(data.interviewId);
+      let transcriptText: string | undefined = undefined;
+
+      if (localTranscript && localTranscript.segments.length > 0) {
+        // Use local storage transcript (same one that would be downloaded)
+        transcriptText = transcriptToText(localTranscript);
+      } else {
+        reviewError =
+          "No local transcript available. Please complete the interview to generate a review.";
+        return; // Exit if no local transcript
+      }
+
+      // Generate review with transcript text (sends as string to backend)
+      const response = await generateReview(data.interviewId, token, transcriptText);
+      review = response.review;
+    } catch (e) {
+      reviewError = e instanceof Error ? e.message : "Failed to generate review";
+    } finally {
+      isLoadingReview = false;
+    }
+  }
+
   async function handleGenerateBriefing() {
     if (!token) {
       error = "No token available";
-      return;
     }
 
     // Validate that we have at least one input method for each field
@@ -182,7 +221,8 @@
               assistantId={import.meta.env.VITE_VAPI_ASSISTANT_ID || ""}
               interviewId={data.interviewId || ""}
               token={token || ""}
-              briefing={briefing || ""}
+              textToRead={briefing || ""}
+              startLabel="Briefing"
             />
           </div>
         {/if}
@@ -218,6 +258,64 @@
             class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
           >
             <TranscriptDownload interviewId={data.interviewId} {token} />
+          </div>
+        {/if}
+
+        <!-- Interview Review -->
+        {#if token && data.interviewId}
+          <div
+            class="p-6 rounded-xl border shadow-xl backdrop-blur-md bg-slate-800/50 border-slate-700/50"
+          >
+            <h2 class="mb-4 text-xl font-bold text-white">Interview Review</h2>
+
+            {#if reviewError}
+              <div
+                class="px-6 py-4 mb-4 text-red-300 rounded-xl border backdrop-blur-sm bg-red-900/30 border-red-700/50"
+              >
+                {reviewError}
+              </div>
+            {/if}
+
+            {#if !review}
+              <button
+                on:click={handleGenerateReview}
+                disabled={isLoadingReview}
+                class="px-6 py-3 font-semibold text-white bg-gradient-to-r from-indigo-600 to-pink-600 rounded-lg shadow-lg transition-all duration-200 hover:from-indigo-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-indigo-500/50"
+              >
+                {isLoadingReview ? "Generating Review..." : "Generate Interview Review"}
+              </button>
+            {:else}
+              <div class="p-5 mt-6 rounded-lg border bg-slate-900/50 border-slate-600">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-lg font-semibold text-white">Interview Review</h3>
+                  <button
+                    on:click={handleGenerateReview}
+                    disabled={isLoadingReview}
+                    class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg transition-all duration-200 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoadingReview ? "Regenerating..." : "Regenerate Review"}
+                  </button>
+                </div>
+                <div
+                  class="max-w-none leading-relaxed text-gray-300 whitespace-pre-wrap prose prose-invert"
+                >
+                  {review}
+                </div>
+
+                <!-- Add VapiOrb for review here -->
+                <div class="mt-6 border-t pt-4 border-slate-700">
+                  <h4 class="mb-2 text-md font-semibold text-white">Voice Review</h4>
+                  <VapiOrb
+                    publicKey={import.meta.env.VITE_VAPI_PUBLIC_KEY || ""}
+                    assistantId={import.meta.env.VITE_VAPI_ASSISTANT_ID || ""}
+                    interviewId={data.interviewId || ""}
+                    token={token || ""}
+                    textToRead={review || ""}
+                    startLabel="Review"
+                  />
+                </div>
+              </div>
+            {/if}
           </div>
         {/if}
 
