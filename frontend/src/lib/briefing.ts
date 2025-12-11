@@ -3,8 +3,12 @@ import type { Interview } from "./types";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export interface GenerateBriefingRequest {
-  job_description: string;
-  resume_text: string;
+  job_description?: string | null;
+  resume_text?: string | null;
+  job_description_path?: string | null;
+  resume_path?: string | null;
+  job_description_source?: string;
+  resume_source?: string;
 }
 
 export interface GenerateBriefingResponse {

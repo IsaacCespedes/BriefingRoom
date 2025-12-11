@@ -34,15 +34,40 @@ def get_supabase_client() -> Client:
 
 
 # Interview operations
-def create_interview(job_description: str, resume_text: str, status: str = "pending") -> dict:
+def create_interview(
+    job_description: str | None = None,
+    resume_text: str | None = None,
+    status: str = "pending",
+    job_description_source: str = "text",
+    resume_source: str = "text",
+    job_description_metadata: dict | None = None,
+    resume_metadata: dict | None = None,
+    job_description_path: str | None = None,
+    resume_path: str | None = None,
+) -> dict:
     """Create a new interview record in the database."""
     client = get_supabase_client()
     
     interview_data = {
-        "job_description": job_description,
-        "resume_text": resume_text,
         "status": status,
+        "job_description_source": job_description_source,
+        "resume_source": resume_source,
     }
+    
+    # Add text fields (can be None for file/URL sources)
+    # Explicitly set to None if not provided, so database knows it's intentional
+    interview_data["job_description"] = job_description
+    interview_data["resume_text"] = resume_text
+    
+    # Add optional metadata and path fields
+    if job_description_metadata is not None:
+        interview_data["job_description_metadata"] = job_description_metadata
+    if resume_metadata is not None:
+        interview_data["resume_metadata"] = resume_metadata
+    if job_description_path is not None:
+        interview_data["job_description_path"] = job_description_path
+    if resume_path is not None:
+        interview_data["resume_path"] = resume_path
     
     result = client.table("interviews").insert(interview_data).execute()
     

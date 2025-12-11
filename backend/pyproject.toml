@@ -11,6 +11,8 @@ dependencies = [
     "pytest-asyncio>=0.21.0",
     "httpx>=0.25.0",
     "crewai>=0.28.0",
+    "crewai[tools]>=0.28.0",     # Includes PDFSearchTool, ScrapeWebsiteTool, etc.
+    "docx2txt>=0.8",             # Required for DOCXSearchTool
     "openai>=1.0.0",
     "langchain-openai>=1.0.0",
     "supabase>=2.0.0",
@@ -32,16 +34,16 @@ target-version = "py311"
 [tool.ruff.lint]
 # Enable specific rule sets
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long (handled by formatter)
+    "E501", # line too long (handled by formatter)
 ]
 
 [tool.ruff.lint.isort]
@@ -59,14 +61,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = [
-    "-v",
-    "--strict-markers",
-    "--tb=short",
-]
+addopts = ["-v", "--strict-markers", "--tb=short"]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "slow: Slow running tests",
 ]
-
