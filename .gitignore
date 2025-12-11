@@ -59,3 +59,5 @@ coverage/
 mcp.json
 .serena/
 backend/hold.env
+frontend/static/models/face_expression_model-shard1
+frontend/static/models/tiny_face_detector_model-shard1

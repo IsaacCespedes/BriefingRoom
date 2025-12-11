@@ -340,3 +340,72 @@ def update_transcript(
     
     return result.data[0]
 
+
+
+# Emotion detection operations
+def create_emotion_detections(
+    interview_id: str,
+    detections: list[dict],
+    source: str = "local_storage",
+) -> list[dict]:
+    """
+    Create multiple emotion detection records in the database.
+    
+    Args:
+        interview_id: Interview UUID as string
+        detections: List of detection dictionaries with:
+            - participantId: str
+            - participantName: Optional[str]
+            - timestamp: int (Unix timestamp in milliseconds)
+            - emotions: dict with emotion scores
+        source: Source of the detections (default: "local_storage")
+    
+    Returns:
+        List of created detection records
+    """
+    client = get_supabase_client()
+    
+    if not detections:
+        return []
+    
+    # Prepare records for batch insert
+    records = []
+    for detection in detections:
+        timestamp_ms = detection.get("timestamp", 0)
+        timestamp_dt = datetime.fromtimestamp(timestamp_ms / 1000.0)
+        
+        record = {
+            "interview_id": interview_id,
+            "participant_id": detection.get("participantId", ""),
+            "participant_name": detection.get("participantName"),
+            "timestamp": timestamp_dt.isoformat(),
+            "emotions": detection.get("emotions", {}),
+            "source": source,
+        }
+        records.append(record)
+    
+    # Batch insert
+    result = client.table("emotion_detections").insert(records).execute()
+    
+    if not result.data:
+        raise ValueError("Failed to create emotion detections")
+    
+    return result.data
+
+
+def get_emotion_detections_by_interview_id(interview_id: str) -> list[dict]:
+    """Retrieve all emotion detections for a given interview."""
+    client = get_supabase_client()
+    
+    try:
+        result = (
+            client.table("emotion_detections")
+            .select("*")
+            .eq("interview_id", interview_id)
+            .order("timestamp", desc=False)
+            .execute()
+        )
+    except Exception:
+        return []
+    
+    return result.data if result.data else []
