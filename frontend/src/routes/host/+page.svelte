@@ -18,8 +18,13 @@
   let isLoadingRoom = false;
 
   // Get job description and resume from server data
-  $: jobDescription = data.interview?.job_description || "";
-  $: resumeText = data.interview?.resume_text || "";
+  // Handle text, file paths, or URLs
+  $: jobDescription = data.interview?.job_description || data.interview?.job_description_path || "";
+  $: resumeText = data.interview?.resume_text || data.interview?.resume_path || "";
+
+  // Get source types for briefing generation
+  $: jobDescriptionSource = data.interview?.job_description_source || "text";
+  $: resumeSource = data.interview?.resume_source || "text";
 
   onMount(() => {
     // Get token from URL or session storage
@@ -33,7 +38,15 @@
       return;
     }
 
-    if (!jobDescription.trim() || !resumeText.trim()) {
+    // Validate that we have at least one input method for each field
+    const hasJobDescription =
+      (data.interview?.job_description && data.interview.job_description.trim()) ||
+      data.interview?.job_description_path;
+    const hasResume =
+      (data.interview?.resume_text && data.interview.resume_text.trim()) ||
+      data.interview?.resume_path;
+
+    if (!hasJobDescription || !hasResume) {
       error = "Job description and resume are required";
       return;
     }
@@ -42,13 +55,17 @@
     error = null;
 
     try {
-      const response = await generateBriefing(
-        {
-          job_description: jobDescription,
-          resume_text: resumeText,
-        },
-        token
-      );
+      // Build request with proper source types and paths
+      const request: any = {
+        job_description: data.interview?.job_description || null,
+        resume_text: data.interview?.resume_text || null,
+        job_description_path: data.interview?.job_description_path || null,
+        resume_path: data.interview?.resume_path || null,
+        job_description_source: jobDescriptionSource,
+        resume_source: resumeSource,
+      };
+
+      const response = await generateBriefing(request, token);
 
       briefing = response.briefing;
     } catch (e) {
@@ -226,18 +243,146 @@
               <div>
                 <h3 class="block mb-3 text-sm font-semibold text-gray-300">Job Description</h3>
                 <div class="p-4 rounded-lg border bg-slate-900/50 border-slate-600">
-                  <p class="leading-relaxed text-gray-300 whitespace-pre-wrap">
-                    {data.interview.job_description}
-                  </p>
+                  {#if data.interview.job_description}
+                    <p class="leading-relaxed text-gray-300 whitespace-pre-wrap">
+                      {data.interview.job_description}
+                    </p>
+                  {:else if data.interview.job_description_path}
+                    <div class="space-y-2">
+                      <p class="text-sm text-gray-400">
+                        Source: {data.interview.job_description_source || "file"}
+                      </p>
+                      {#if data.interview.job_description_source === "url"}
+                        <a
+                          href={data.interview.job_description_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 underline transition-colors"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                            ></path>
+                          </svg>
+                          Link
+                        </a>
+                      {:else}
+                        <div class="space-y-2">
+                          {#if data.interview.job_description_metadata?.filename}
+                            <p class="text-xs text-gray-500">
+                              File: {data.interview.job_description_metadata.filename}
+                            </p>
+                          {/if}
+                          <a
+                            href={data.interview.job_description_path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 underline transition-colors"
+                          >
+                            <svg
+                              class="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                              ></path>
+                            </svg>
+                            Link
+                          </a>
+                        </div>
+                      {/if}
+                    </div>
+                  {:else}
+                    <p class="text-gray-500 italic">No job description provided</p>
+                  {/if}
                 </div>
               </div>
 
               <div>
                 <h3 class="block mb-3 text-sm font-semibold text-gray-300">Candidate Resume</h3>
                 <div class="p-4 rounded-lg border bg-slate-900/50 border-slate-600">
-                  <p class="leading-relaxed text-gray-300 whitespace-pre-wrap">
-                    {data.interview.resume_text}
-                  </p>
+                  {#if data.interview.resume_text}
+                    <p class="leading-relaxed text-gray-300 whitespace-pre-wrap">
+                      {data.interview.resume_text}
+                    </p>
+                  {:else if data.interview.resume_path}
+                    <div class="space-y-2">
+                      <p class="text-sm text-gray-400">
+                        Source: {data.interview.resume_source || "file"}
+                      </p>
+                      {#if data.interview.resume_source === "url"}
+                        <a
+                          href={data.interview.resume_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 underline transition-colors"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                            ></path>
+                          </svg>
+                          Link
+                        </a>
+                      {:else}
+                        <div class="space-y-2">
+                          {#if data.interview.resume_metadata?.filename}
+                            <p class="text-xs text-gray-500">
+                              File: {data.interview.resume_metadata.filename}
+                            </p>
+                          {/if}
+                          <a
+                            href={data.interview.resume_path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 underline transition-colors"
+                          >
+                            <svg
+                              class="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                              ></path>
+                            </svg>
+                            Link
+                          </a>
+                        </div>
+                      {/if}
+                    </div>
+                  {:else}
+                    <p class="text-gray-500 italic">No resume provided</p>
+                  {/if}
                 </div>
               </div>
             </div>

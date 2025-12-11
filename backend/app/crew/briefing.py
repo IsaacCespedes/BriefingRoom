@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 
 from crewai import Agent, Crew, Process, Task
+from crewai_tools import DOCXSearchTool, PDFSearchTool, ScrapeWebsiteTool
 from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
@@ -21,54 +22,86 @@ def create_briefing_crew(llm: Optional[ChatOpenAI] = None) -> Crew:
     if llm is None:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
 
-    # Define agents
+    # Set up tools for document processing
+    tools = []
+    
+    # Add PDF search tool
+    pdf_search_tool = PDFSearchTool()
+    tools.append(pdf_search_tool)
+    
+    # Add DOCX search tool
+    docx_search_tool = DOCXSearchTool()
+    tools.append(docx_search_tool)
+    
+    # Add web scraping tool for URLs
+    scrape_tool = ScrapeWebsiteTool()
+    tools.append(scrape_tool)
+
+    # Define agents with tools
     resume_analyst = Agent(
         role="Resume Analyst",
-        goal="Analyze candidate resumes thoroughly and extract key information about skills, experience, and qualifications",
-        backstory="You are an experienced HR professional with expertise in analyzing resumes and identifying candidate strengths and potential fit for roles.",
+        goal="Analyze candidate resumes thoroughly and extract key information about skills, experience, and qualifications. If the resume is provided as a file path or URL, use the available tools to extract the text first.",
+        backstory="You are an experienced HR professional with expertise in analyzing resumes and identifying candidate strengths and potential fit for roles. You are skilled at extracting information from various document formats including PDFs, Word documents, and web pages.",
         verbose=True,
         llm=llm,
+        tools=tools,
     )
 
     briefing_generator = Agent(
         role="Briefing Generator",
-        goal="Create concise interview briefings with candidate summaries and strategic questions",
-        backstory="You are a senior recruiter who prepares brief briefings for interview hosts, highlighting key candidate information and suggesting strategic questions to ask during interviews. Keep briefings concise and focused.",
+        goal="Create comprehensive interview briefings with candidate summaries and strategic questions. If the job description is provided as a file path or URL, use the available tools to extract the text first.",
+        backstory="You are a senior recruiter who prepares detailed briefings for interview hosts, highlighting key candidate information and suggesting strategic questions to ask during interviews. You can work with documents in various formats.",
         verbose=True,
         llm=llm,
+        tools=tools,
     )
 
-    # Define tasks - IMPORTANT: Use {variable_name} syntax to pass inputs
+    # Define tasks
     analyze_resume_task = Task(
-        description="""Analyze the candidate's resume provided below and extract key information including: 
-        - Skills (technical and soft skills)
-        - Work experience (companies, roles, dates, key achievements)
-        - Education
-        - Notable achievements
-        - Potential red flags or areas of concern
+        description="""Analyze the candidate's resume and extract key information including: skills, work experience, education, achievements, and potential red flags or areas of concern.
         
-        Resume text:
-        {resume_text}
+        Resume content: {resume_text}
         
-        Provide a structured analysis focusing on the most relevant qualifications.""",
+        IMPORTANT: The input is prefixed with a type indicator. You MUST use the appropriate tool based on the prefix:
+        
+        - If it starts with "PDF_FILE:" → Remove the prefix and use PDFSearchTool on the URL/path that follows
+        - If it starts with "DOCX_FILE:" → Remove the prefix and use DOCXSearchTool on the URL/path that follows
+        - If it starts with "FILE:" → Remove the prefix and try to determine file type from the extension, then use PDFSearchTool or DOCXSearchTool
+        - If it starts with "WEBSITE_URL:" → Remove the prefix and use ScrapeWebsiteTool on the URL that follows
+        - If it's plain text (no prefix): Analyze directly without using tools
+        
+        Examples:
+        - "PDF_FILE:https://example.com/storage/file.pdf?token=abc" → Use PDFSearchTool on "https://example.com/storage/file.pdf?token=abc"
+        - "WEBSITE_URL:https://example.com/job-posting" → Use ScrapeWebsiteTool on "https://example.com/job-posting"
+        - "John Doe, Software Engineer..." → Analyze directly (plain text)
+        
+        After extracting the text (if needed), provide a detailed analysis with structured information about their qualifications.""",
         agent=resume_analyst,
-        expected_output="A concise analysis of the candidate's resume with structured information about their qualifications.",
+        expected_output="A detailed analysis of the candidate's resume with structured information about their qualifications.",
     )
 
     generate_briefing_task = Task(
-        description="""Based on the resume analysis from the previous task and the job description below, create a concise interview briefing (maximum 300 words) that includes:
-        1. Brief candidate summary (2-3 sentences)
-        2. Key strengths relevant to the role (3-4 bullet points)
-        3. Potential concerns or questions to explore (2-3 bullet points)
-        4. Strategic interview questions (3-5 questions tailored to the role)
+        description="""Based on the resume analysis from the previous task and the job description below, create a comprehensive briefing that includes: a candidate summary, key strengths, potential concerns, and strategic interview questions tailored to the role.
         
-        Job Description:
-        {job_description}
+        Job description content: {job_description}
         
-        Use the resume analysis from the previous task to understand the candidate's background. Keep the briefing concise and focused. Reference specific skills and experiences from both the resume analysis and job description.""",
+        IMPORTANT: The input is prefixed with a type indicator. You MUST use the appropriate tool based on the prefix:
+        
+        - If it starts with "PDF_FILE:" → Remove the prefix and use PDFSearchTool on the URL/path that follows
+        - If it starts with "DOCX_FILE:" → Remove the prefix and use DOCXSearchTool on the URL/path that follows
+        - If it starts with "FILE:" → Remove the prefix and try to determine file type from the extension, then use PDFSearchTool or DOCXSearchTool
+        - If it starts with "WEBSITE_URL:" → Remove the prefix and use ScrapeWebsiteTool on the URL that follows
+        - If it's plain text (no prefix): Use directly without using tools
+        
+        Examples:
+        - "PDF_FILE:https://example.com/storage/file.pdf?token=abc" → Use PDFSearchTool on "https://example.com/storage/file.pdf?token=abc"
+        - "WEBSITE_URL:https://example.com/job-posting" → Use ScrapeWebsiteTool on "https://example.com/job-posting"
+        - "Software Engineer position..." → Use directly (plain text)
+        
+        After extracting the job description text (if needed), create the briefing based on both the resume analysis and job description.""",
         agent=briefing_generator,
-        expected_output="A concise interview briefing (max 300 words) with candidate summary, key strengths, concerns, and strategic questions.",
-        context=[analyze_resume_task],  # Explicitly pass previous task output as context
+        expected_output="A complete interview briefing document with candidate summary and strategic questions.",
+        context=[analyze_resume_task],
     )
 
     # Create crew

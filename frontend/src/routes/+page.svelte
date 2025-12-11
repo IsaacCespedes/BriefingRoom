@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
   import { createInterview } from "$lib/interviews";
+  import MultiInput from "$lib/components/MultiInput.svelte";
   import type { PageData } from "./$types";
   import { browser } from "$app/environment";
 
@@ -8,8 +9,10 @@
 
   let error: string | null = null;
   let copyError: string | null = null;
-  let jobDescription = "";
-  let resumeText = "";
+  let jobDescriptionContent: string | File | null = null;
+  let resumeContent: string | File | null = null;
+  let jobDescriptionMetadata: any = null;
+  let resumeMetadata: any = null;
   let isLoading = false;
   let hostToken: string | null = null;
   let candidateToken: string | null = null;
@@ -19,15 +22,29 @@
 
   // Check if we have a token validation error from the server
   $: hasTokenError = data.error && data.error !== "No token provided";
-  $: showForm = !data.role && (!data.error || data.error === "No token provided" || hasTokenError) && !interviewId;
+  $: showForm =
+    !data.role &&
+    (!data.error || data.error === "No token provided" || hasTokenError) &&
+    !interviewId;
   $: showLinks = interviewId && hostToken && candidateToken;
 
   $: hostLink = browser && hostToken ? `${window.location.origin}/host?token=${hostToken}` : "";
-  $: candidateLink = browser && candidateToken ? `${window.location.origin}/candidate?token=${candidateToken}` : "";
+  $: candidateLink =
+    browser && candidateToken ? `${window.location.origin}/candidate?token=${candidateToken}` : "";
+
+  function handleJobDescriptionChange(event: CustomEvent) {
+    jobDescriptionContent = event.detail.content;
+    jobDescriptionMetadata = event.detail.metadata;
+  }
+
+  function handleResumeChange(event: CustomEvent) {
+    resumeContent = event.detail.content;
+    resumeMetadata = event.detail.metadata;
+  }
 
   async function handleCreateInterview() {
-    if (!jobDescription.trim() || !resumeText.trim()) {
-      error = "Please provide both job description and resume text";
+    if (!jobDescriptionContent || !resumeContent) {
+      error = "Please provide both job description and resume";
       return;
     }
 
@@ -35,10 +52,34 @@
     error = null;
 
     try {
-      const response = await createInterview({
-        job_description: jobDescription,
-        resume_text: resumeText,
-      });
+      // Build request based on content types
+      const request: any = {};
+
+      // Handle job description
+      if (jobDescriptionMetadata?.type === "file") {
+        request.job_description_file = jobDescriptionContent as File;
+        request.job_description_type = "file";
+      } else if (jobDescriptionMetadata?.type === "url") {
+        request.job_description_url = jobDescriptionContent as string;
+        request.job_description_type = "url";
+      } else {
+        request.job_description = jobDescriptionContent as string;
+        request.job_description_type = "text";
+      }
+
+      // Handle resume
+      if (resumeMetadata?.type === "file") {
+        request.resume_file = resumeContent as File;
+        request.resume_type = "file";
+      } else if (resumeMetadata?.type === "url") {
+        request.resume_url = resumeContent as string;
+        request.resume_type = "url";
+      } else {
+        request.resume_text = resumeContent as string;
+        request.resume_type = "text";
+      }
+
+      const response = await createInterview(request);
 
       interviewId = response.interview_id;
       hostToken = response.host_token;
@@ -73,7 +114,7 @@
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        
+
         try {
           const successful = document.execCommand("copy");
           if (!successful) {
@@ -103,8 +144,10 @@
     interviewId = null;
     hostToken = null;
     candidateToken = null;
-    jobDescription = "";
-    resumeText = "";
+    jobDescriptionContent = null;
+    resumeContent = null;
+    jobDescriptionMetadata = null;
+    resumeMetadata = null;
     error = null;
     copyError = null;
     hostLinkCopied = false;
@@ -126,7 +169,9 @@
   <div class="container mx-auto px-4 py-12">
     <!-- Hero Section -->
     <div class="text-center mb-12">
-      <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-4">
+      <h1
+        class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-4"
+      >
         Bionic Interviewer
       </h1>
       <p class="text-gray-400 text-lg">AI-Powered Interview Management Platform</p>
@@ -160,40 +205,28 @@
     {/if}
 
     {#if showForm}
-      <div class="bg-slate-800/50 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-3xl mx-auto border border-slate-700/50">
+      <div
+        class="bg-slate-800/50 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-3xl mx-auto border border-slate-700/50"
+      >
         <h2 class="text-3xl font-bold text-white mb-3">Create New Interview</h2>
         <p class="text-gray-400 mb-8">
           Enter the job description and candidate resume to create a new interview session.
         </p>
 
         <form on:submit|preventDefault={handleCreateInterview} class="space-y-6">
-          <div>
-            <label for="job-description" class="block text-sm font-semibold text-gray-300 mb-3">
-              Job Description
-            </label>
-            <textarea
-              id="job-description"
-              bind:value={jobDescription}
-              rows="6"
-              class="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder-gray-500 transition-all duration-200"
-              placeholder="Enter the job description..."
-              required
-            ></textarea>
-          </div>
+          <MultiInput
+            fieldName="job-description"
+            label="Job Description"
+            required={true}
+            on:change={handleJobDescriptionChange}
+          />
 
-          <div>
-            <label for="resume-text" class="block text-sm font-semibold text-gray-300 mb-3">
-              Candidate Resume
-            </label>
-            <textarea
-              id="resume-text"
-              bind:value={resumeText}
-              rows="12"
-              class="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder-gray-500 transition-all duration-200"
-              placeholder="Paste the candidate's resume text..."
-              required
-            ></textarea>
-          </div>
+          <MultiInput
+            fieldName="resume"
+            label="Candidate Resume"
+            required={true}
+            on:change={handleResumeChange}
+          />
 
           <button
             type="submit"
@@ -207,11 +240,25 @@
     {/if}
 
     {#if showLinks}
-      <div class="bg-slate-800/50 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-3xl mx-auto border border-slate-700/50">
+      <div
+        class="bg-slate-800/50 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-3xl mx-auto border border-slate-700/50"
+      >
         <div class="text-center mb-8">
-          <div class="inline-flex items-center justify-center w-16 h-16 bg-green-500/20 rounded-full mb-4">
-            <svg class="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          <div
+            class="inline-flex items-center justify-center w-16 h-16 bg-green-500/20 rounded-full mb-4"
+          >
+            <svg
+              class="w-8 h-8 text-green-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              ></path>
             </svg>
           </div>
           <h2 class="text-3xl font-bold text-white mb-2">Interview Created Successfully!</h2>
@@ -232,10 +279,10 @@
           <!-- Host Link -->
           <div class="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50">
             <div class="flex items-center justify-between mb-3">
-              <label class="block text-sm font-semibold text-gray-300">
-                Host Link
-              </label>
-              <span class="text-xs text-gray-500 bg-slate-800/50 px-2 py-1 rounded">For Interviewer</span>
+              <label class="block text-sm font-semibold text-gray-300"> Host Link </label>
+              <span class="text-xs text-gray-500 bg-slate-800/50 px-2 py-1 rounded"
+                >For Interviewer</span
+              >
             </div>
             <div class="flex items-center gap-3">
               <input
@@ -251,12 +298,22 @@
               >
                 {#if hostLinkCopied}
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    ></path>
                   </svg>
                   Copied!
                 {:else}
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    ></path>
                   </svg>
                   Copy
                 {/if}
@@ -267,10 +324,10 @@
           <!-- Candidate Link -->
           <div class="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50">
             <div class="flex items-center justify-between mb-3">
-              <label class="block text-sm font-semibold text-gray-300">
-                Candidate Link
-              </label>
-              <span class="text-xs text-gray-500 bg-slate-800/50 px-2 py-1 rounded">For Interviewee</span>
+              <label class="block text-sm font-semibold text-gray-300"> Candidate Link </label>
+              <span class="text-xs text-gray-500 bg-slate-800/50 px-2 py-1 rounded"
+                >For Interviewee</span
+              >
             </div>
             <div class="flex items-center gap-3">
               <input
@@ -286,12 +343,22 @@
               >
                 {#if candidateLinkCopied}
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    ></path>
                   </svg>
                   Copied!
                 {:else}
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    ></path>
                   </svg>
                   Copy
                 {/if}
