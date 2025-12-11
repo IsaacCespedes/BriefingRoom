@@ -143,15 +143,19 @@ export function getTranscript(interviewId: string): StoredTranscript | null {
 }
 
 /**
- * Convert stored transcript to plain text
+ * Convert stored transcript to plain text with timestamps
  */
 export function transcriptToText(transcript: StoredTranscript): string {
   return transcript.segments
     .map((segment) => {
+      // Format timestamp as [YYYY-MM-DD HH:MM:SS]
+      const timestamp = new Date(segment.timestamp);
+      const timestampStr = timestamp.toISOString().replace("T", " ").substring(0, 19);
+      
       if (segment.speaker) {
-        return `${segment.speaker}: ${segment.text}`;
+        return `[${timestampStr}] ${segment.speaker}: ${segment.text}`;
       }
-      return segment.text;
+      return `[${timestampStr}] ${segment.text}`;
     })
     .join("\n");
 }

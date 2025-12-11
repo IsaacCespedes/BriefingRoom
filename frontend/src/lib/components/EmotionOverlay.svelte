@@ -5,7 +5,18 @@
   export let participantName: string | null = null;
   export let position: "top-left" | "top-right" | "bottom-left" | "bottom-right" = "top-left";
 
-  type EmotionItem = { emotion: string; percentage: number };
+  type EmotionItem = { emoji: string; percentage: number };
+
+  // Emotion to emoji mapping
+  const emotionEmojis: Record<string, string> = {
+    happy: "😊",
+    sad: "😢",
+    angry: "😠",
+    fearful: "😨",
+    disgusted: "🤢",
+    surprised: "😲",
+    neutral: "", // Never show neutral
+  };
 
   let emotionList: EmotionItem[] = [];
 
@@ -13,10 +24,10 @@
     emotionList = emotions
       ? Object.entries(emotions)
           .map(([emotion, score]: [string, number]) => ({
-            emotion: emotion.charAt(0).toUpperCase() + emotion.slice(1),
+            emoji: emotionEmojis[emotion] || "",
             percentage: Math.round(score * 100),
           }))
-          .filter((item: EmotionItem) => item.percentage > 0)
+          .filter((item: EmotionItem) => item.percentage > 0 && item.emoji !== "") // Exclude neutral and 0%
           .sort((a: EmotionItem, b: EmotionItem) => b.percentage - a.percentage)
       : [];
   }
@@ -39,9 +50,9 @@
       <div class="emotion-participant-name">{participantName}</div>
     {/if}
     <div class="emotion-list">
-      {#each emotionList as { emotion, percentage }}
+      {#each emotionList as { emoji, percentage }}
         <div class="emotion-item">
-          <span class="emotion-label">{emotion}:</span>
+          <span class="emotion-emoji">{emoji}</span>
           <span class="emotion-percentage">{percentage}%</span>
         </div>
       {/each}
@@ -86,9 +97,9 @@
     line-height: 1.4;
   }
 
-  .emotion-label {
-    color: rgba(255, 255, 255, 0.9);
-    font-weight: 500;
+  .emotion-emoji {
+    font-size: 1.25rem;
+    line-height: 1;
   }
 
   .emotion-percentage {
